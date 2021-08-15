@@ -54,6 +54,25 @@ func getPemCert(domain string, token *jwt.Token) (string, error) {
 	return cert, nil
 }
 
+func GetUser(accessToken string) (string, error) {
+	parser := jwt.Parser{}
+	claims := jwt.MapClaims{}
+
+	// Parsing unverified is okay as long as handlers all go through
+	// a JWT middleware before running this.
+	_, _, err := parser.ParseUnverified(accessToken, claims)
+
+	if err != nil {
+		return "", err
+	}
+	user := claims["https://hoagie.io/email"]
+	userString, ok := user.(string)
+	if !ok {
+		return "", fmt.Errorf("username not string")
+	}
+	return userString, nil
+}
+
 func Middleware(domain string, audience string) *jwtmiddleware.JWTMiddleware {
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
 		// Verify 'aud' claim
@@ -89,7 +108,6 @@ func CorsWrapper(runtimeMode string) *cors.Cors {
 		corsWrapper = cors.New(cors.Options{
 			AllowedMethods: []string{"GET", "POST"},
 			AllowedHeaders: []string{"Content-Type", "Origin", "Accept", "*"},
-			// Debug:          true,
 		})
 	} else {
 		corsWrapper = cors.New(cors.Options{

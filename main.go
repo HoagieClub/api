@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
 
@@ -27,7 +28,8 @@ func main() {
 
 	jwtMiddleware := auth.Middleware(domain, audience)
 
-	r := auth.NewRouter()
+	r := mux.NewRouter()
+	r.Host("localhost").Subrouter()
 
 	handlers.Setup(r, jwtMiddleware)
 
