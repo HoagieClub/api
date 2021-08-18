@@ -81,6 +81,13 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	const headerLimit int = 256
+	if len(mailReq.Header) > headerLimit {
+		responseString := fmt.Sprintf("Request cannot be completed because email header of length %d is over the %d-character limit.", len(mailReq.Header), headerLimit)
+		http.Error(w, responseString, http.StatusForbidden)
+		return
+	}
+
 	mailReq.Body = p.Sanitize(mailReq.Body)
 	mailReq.Body += `
 	<hr />
