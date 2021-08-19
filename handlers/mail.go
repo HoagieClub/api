@@ -48,7 +48,7 @@ func sendMail(req MailRequest) {
 	message.SetReplyTo(replyTo)
 
 	tos := []*mail.Email{
-		mail.NewEmail("Hoagie", os.Getenv("HOAGIE_TEST_EMAIL")),
+		mail.NewEmail(req.Sender, req.Email),
 	}
 
 	p := mail.NewPersonalization()
@@ -70,33 +70,40 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	user, err := auth.GetUser(accessToken)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
 		return
 	}
 
 	var mailReq MailRequest
 	err = json.NewDecoder(r.Body).Decode(&mailReq)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Message did not contain correct fields.", http.StatusBadRequest)
+		return
+	}
+	if notBetween(w, mailReq.Sender, "sender name", 3, 30) {
+		return
+	}
+	if notBetween(w, mailReq.Header, "email header", 3, 150) {
 		return
 	}
 
-	const headerLimit int = 256
-	if len(mailReq.Header) > headerLimit {
-		responseString := fmt.Sprintf("Request cannot be completed because email header of length %d is over the %d-character limit.", len(mailReq.Header), headerLimit)
-		http.Error(w, responseString, http.StatusForbidden)
-		return
-	}
-
-	mailReq.Body = p.Sanitize(mailReq.Body)
-	mailReq.Body += `
+	// mailReq.Body = p.Sanitize(mailReq.Body)
+	mailReq.Email = user
+	mailReq.Body += fmt.Sprintf(`
 	<hr />
 	<div style="font-size:8pt;">This email was sent instantly to all 
 	college listservs with <a href="https://mail.hoagie.io/">mail.hoagie.io</a>. 
 	You can use it to automatically send emails to all students without 
-	the need to forward it to friends.</div>
-	`
-	mailReq.Email = user
+	the need to forward it to friends. Email composed by %s — if you believe this email 
+	is offensive, intentionally misleading or harmful, please report it to 
+	<a href="mailto:hoagie@princeton.edu">hoagie@princeton.edu</a>.</div>
+	`, mailReq.Email)
 
+	if os.Getenv("HOAGIE_MODE") == "debug" {
+		println(mailReq.Email)
+		println(mailReq.Header)
+		println(mailReq.Body)
+		return
+	}
 	sendMail(mailReq)
 })
