@@ -22,21 +22,24 @@ const (
 
 func main() {
 	godotenv.Load(".env.local")
+	godotenv.Load(".settings")
 	domain := os.Getenv("AUTH0_DOMAIN")
 	audience := os.Getenv("AUTH0_AUDIENCE")
+	hostname := os.Getenv("HOAGIE_HOST")
+	port := os.Getenv("PORT")
 	runtimeMode := os.Getenv("HOAGIE_MODE")
 
 	jwtMiddleware := auth.Middleware(domain, audience)
 
 	r := mux.NewRouter()
-	r.Host("localhost").Subrouter()
+	r.Host(hostname).Subrouter()
 
 	handlers.Setup(r, jwtMiddleware)
 
 	corsWrapper := auth.CorsWrapper(runtimeMode)
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + port,
 		Handler: corsWrapper.Handler(r),
 	}
 
@@ -44,7 +47,7 @@ func main() {
 	█░█ █▀█ ▄▀█ █▀▀ █ █▀▀
 	█▀█ █▄█ █▀█ █▄█ █ ██▄
 	`)
-	fmt.Println("[i] Running on https://localhost:8080")
+	fmt.Printf("[i] Running on https://%s:%s\n", hostname, port)
 
 	server.ListenAndServe()
 }
