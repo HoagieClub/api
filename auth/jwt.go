@@ -113,7 +113,7 @@ func CorsWrapper(runtimeMode string) *cors.Cors {
 		corsWrapper = cors.New(cors.Options{
 			AllowedMethods: []string{"GET", "POST"},
 			AllowedHeaders: []string{"Content-Type", "Origin", "Accept", "*"},
-			AllowedOrigins: []string{"http://*.hoagie.io"},
+			AllowedOrigins: []string{"https://*.hoagie.io"},
 		})
 	}
 	return corsWrapper

@@ -22,7 +22,6 @@ const (
 
 func main() {
 	godotenv.Load(".env.local")
-	godotenv.Load(".settings")
 	domain := os.Getenv("AUTH0_DOMAIN")
 	audience := os.Getenv("AUTH0_AUDIENCE")
 	hostname := os.Getenv("HOAGIE_HOST")
@@ -48,6 +47,8 @@ func main() {
 	█▀█ █▄█ █▀█ █▄█ █ ██▄
 	`)
 	fmt.Printf("[i] Running on https://%s:%s\n", hostname, port)
-
+	if runtimeMode == "debug" {
+		fmt.Println("[i] Debug mode is on.")
+	}
 	server.ListenAndServe()
 }
