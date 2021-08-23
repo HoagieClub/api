@@ -65,12 +65,27 @@ func sendMail(req MailRequest) {
 	}
 }
 
+func userReachedLimit(user string) bool {
+	userLimit := getVisitor(user)
+	return !userLimit.Allow()
+}
+
 var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	accessToken := strings.TrimPrefix(r.Header.Get("authorization"), "Bearer ")
 
 	user, err := auth.GetUser(accessToken)
 	if err != nil {
 		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
+		return
+	}
+
+	if userReachedLimit(user) {
+		http.Error(w, `
+			You have reached your send limit. 
+			You can only send one email every 6 hours. 
+			If you need to send an email urgently, 
+			please contact hoagie@princeton.edu`,
+			http.StatusTooManyRequests)
 		return
 	}
 
