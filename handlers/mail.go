@@ -48,11 +48,22 @@ func sendMail(req MailRequest) {
 	message.SetReplyTo(replyTo)
 
 	tos := []*mail.Email{
+		mail.NewEmail("Butler", "BUTLERBUZZ@PRINCETON.EDU"),
+		mail.NewEmail("Whitman", "WHITMANWIRE@PRINCETON.EDU"),
+		mail.NewEmail("Rocky", "RockyWire@PRINCETON.EDU"),
+		mail.NewEmail("Forbes", "Re-INNformer@PRINCETON.EDU"),
+		mail.NewEmail("First", "firstrc@PRINCETON.EDU"),
+		mail.NewEmail("Mathey", "matheymail@PRINCETON.EDU"),
+	}
+
+	ccs := []*mail.Email{
 		mail.NewEmail(req.Sender, req.Email),
+		mail.NewEmail("Hoagie Mail", "hoagie@princeton.edu"),
 	}
 
 	p := mail.NewPersonalization()
 	p.AddTos(tos...)
+	p.AddCCs(ccs...)
 
 	message.AddPersonalizations(p)
 
