@@ -35,7 +35,7 @@ type MailRequest struct {
 	Email  string
 }
 
-func sendMail(req MailRequest) {
+func sendMail(req MailRequest) error {
 	from := mail.NewEmail(req.Sender, "hoagie@princeton.edu")
 	replyTo := mail.NewEmail(req.Sender, req.Email)
 	subject := req.Header
@@ -52,7 +52,7 @@ func sendMail(req MailRequest) {
 		mail.NewEmail("Whitman", "WHITMANWIRE@PRINCETON.EDU"),
 		mail.NewEmail("Rocky", "RockyWire@PRINCETON.EDU"),
 		mail.NewEmail("Forbes", "Re-INNformer@PRINCETON.EDU"),
-		mail.NewEmail("First", "firstrc@PRINCETON.EDU"),
+		mail.NewEmail("First", "FIRSTCOMEFIRSTSERV@PRINCETON.EDU"),
 		mail.NewEmail("Mathey", "matheymail@PRINCETON.EDU"),
 	}
 
@@ -68,11 +68,11 @@ func sendMail(req MailRequest) {
 	message.AddPersonalizations(p)
 
 	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
-	response, err := client.Send(message)
+	_, err := client.Send(message)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	} else {
-		fmt.Println(response)
+		return nil
 	}
 }
 
@@ -117,11 +117,11 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	mailReq.Email = user
 	mailReq.Body += fmt.Sprintf(`
 	<hr />
-	<div style="font-size:8pt;">This email was sent instantly to all 
+	<div style="font-size:8pt;">This email was instantly sent to all
 	college listservs with <a href="https://mail.hoagie.io/">mail.hoagie.io</a>. 
-	You can use it to automatically send emails to all students without 
-	the need to forward it to friends. Email composed by %s — if you believe this email 
-	is offensive, intentionally misleading or harmful, please report it to 
+	Want to be part of projects like this? <a href="https://club.hoagie.io/">Apply to Hoagie!</a>
+	Email composed by %s — if you believe this email
+	is offensive, intentionally misleading or harmful, please report it to
 	<a href="mailto:hoagie@princeton.edu">hoagie@princeton.edu</a>.</div>
 	`, mailReq.Email)
 
@@ -131,5 +131,10 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		println(mailReq.Body)
 		return
 	}
-	sendMail(mailReq)
+	err = sendMail(mailReq)
+
+	if err != nil {
+		http.Error(w, "Hoagie Mail service had an error, please try again later.", http.StatusNotFound)
+		return
+	}
 })
