@@ -47,6 +47,9 @@ func sendMail(req MailRequest) error {
 	message := mail.NewV3MailInit(from, subject, to, content)
 	message.SetReplyTo(replyTo)
 
+	tos := []*mail.Email{
+		mail.NewEmail(req.Sender, req.Email),
+	}
 	ccs := []*mail.Email{
 		mail.NewEmail("Butler", "BUTLERBUZZ@PRINCETON.EDU"),
 		mail.NewEmail("Whitman", "WHITMANWIRE@PRINCETON.EDU"),
@@ -54,10 +57,11 @@ func sendMail(req MailRequest) error {
 		mail.NewEmail("Forbes", "Re-INNformer@PRINCETON.EDU"),
 		mail.NewEmail("First", "FIRSTCOMEFIRSTSERV@PRINCETON.EDU"),
 		mail.NewEmail("Mathey", "matheymail@PRINCETON.EDU"),
-		mail.NewEmail("Hoagie Mail", "hoagie@princeton.edu"),
+		mail.NewEmail("Hoagie Mail", "hoagie+mail@princeton.edu"),
 	}
 
 	p := mail.NewPersonalization()
+	p.AddTos(tos...)
 	p.AddCCs(ccs...)
 
 	message.AddPersonalizations(p)
@@ -67,8 +71,8 @@ func sendMail(req MailRequest) error {
 	if err != nil {
 		return err
 		// TODO: be better with status code handling. Most likely just == 400.
-	} else if resp.StatusCode >= 400 {
-		return fmt.Errorf("reached the mail send limit for the day, try again tomorrow")
+	} else if resp.StatusCode == 400 {
+		return fmt.Errorf("reached the mail send limit for the day, try again tomorrow", resp.Body)
 	}
 	return nil
 }
