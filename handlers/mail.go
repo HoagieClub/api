@@ -130,6 +130,8 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	}
 	err = sendMail(mailReq)
 
+	fmt.Printf("MAIL: %s sent an email with title '%s'.", mailReq.Email, mailReq.Header)
+
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
 		return
