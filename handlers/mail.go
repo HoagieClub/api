@@ -42,38 +42,35 @@ func sendMail(req MailRequest) error {
 
 	content := mail.NewContent("text/html", req.Body)
 
-	to := mail.NewEmail("Hoagie", "hoagie@princeton.edu")
+	to := mail.NewEmail(req.Sender, req.Email)
 
 	message := mail.NewV3MailInit(from, subject, to, content)
 	message.SetReplyTo(replyTo)
 
-	tos := []*mail.Email{
+	ccs := []*mail.Email{
 		mail.NewEmail("Butler", "BUTLERBUZZ@PRINCETON.EDU"),
 		mail.NewEmail("Whitman", "WHITMANWIRE@PRINCETON.EDU"),
 		mail.NewEmail("Rocky", "RockyWire@PRINCETON.EDU"),
 		mail.NewEmail("Forbes", "Re-INNformer@PRINCETON.EDU"),
 		mail.NewEmail("First", "FIRSTCOMEFIRSTSERV@PRINCETON.EDU"),
 		mail.NewEmail("Mathey", "matheymail@PRINCETON.EDU"),
-	}
-
-	ccs := []*mail.Email{
-		mail.NewEmail(req.Sender, req.Email),
 		mail.NewEmail("Hoagie Mail", "hoagie@princeton.edu"),
 	}
 
 	p := mail.NewPersonalization()
-	p.AddTos(tos...)
 	p.AddCCs(ccs...)
 
 	message.AddPersonalizations(p)
 
 	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
-	_, err := client.Send(message)
+	resp, err := client.Send(message)
 	if err != nil {
 		return err
-	} else {
-		return nil
+		// TODO: be better with status code handling. Most likely just == 400.
+	} else if resp.StatusCode >= 400 {
+		return fmt.Errorf("reached the mail send limit for the day, try again tomorrow")
 	}
+	return nil
 }
 
 func userReachedLimit(user string) bool {
@@ -134,7 +131,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	err = sendMail(mailReq)
 
 	if err != nil {
-		http.Error(w, "Hoagie Mail service had an error, please try again later.", http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
 		return
 	}
 })
