@@ -10,9 +10,8 @@ import (
 
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
 	"github.com/gorilla/mux"
+	mailjet "github.com/mailjet/mailjet-apiv3-go"
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/sendgrid/sendgrid-go"
-	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
 const (
@@ -35,44 +34,74 @@ type MailRequest struct {
 	Email  string
 }
 
+func makeRequest(req MailRequest) error {
+	mailjetClient := mailjet.NewMailjetClient(os.Getenv("MAILJET_PUBLIC_KEY"), os.Getenv("MAILJET_PRIVATE_KEY"))
+	messagesInfo := []mailjet.InfoMessagesV31{
+		{
+			From: &mailjet.RecipientV31{
+				Email: "hoagie@princeton.edu",
+				Name:  req.Sender,
+			},
+			ReplyTo: &mailjet.RecipientV31{
+				Email: req.Email,
+				Name:  req.Sender,
+			},
+			To: &mailjet.RecipientsV31{
+				mailjet.RecipientV31{
+					Email: req.Email,
+					Name:  req.Sender,
+				},
+				mailjet.RecipientV31{
+					Email: "BUTLERBUZZ@PRINCETON.EDU",
+					Name:  "Butler",
+				},
+				mailjet.RecipientV31{
+					Email: "WHITMANWIRE@PRINCETON.EDU",
+					Name:  "Whitman",
+				},
+				mailjet.RecipientV31{
+					Email: "RockyWire@PRINCETON.EDU",
+					Name:  "Rocky",
+				},
+				mailjet.RecipientV31{
+					Email: "Re-INNformer@PRINCETON.EDU",
+					Name:  "Forbes",
+				},
+				mailjet.RecipientV31{
+					Email: "FIRSTCOMEFIRSTSERV@PRINCETON.EDU",
+					Name:  "First",
+				},
+				mailjet.RecipientV31{
+					Email: "matheymail@PRINCETON.EDU",
+					Name:  "Mathey",
+				},
+				mailjet.RecipientV31{
+					Email: "hoagie@PRINCETON.EDU",
+					Name:  "Hoagie",
+				},
+			},
+			Subject:  req.Header,
+			TextPart: req.Body,
+			HTMLPart: req.Body,
+			CustomID: "HoagieMail",
+		},
+	}
+	messages := mailjet.MessagesV31{Info: messagesInfo}
+	res, err := mailjetClient.SendMailV31(&messages)
+	if err != nil {
+		return err
+	}
+	if len(res.ResultsV31) > 0 && res.ResultsV31[0].Status == "success" {
+		return nil
+	}
+	return fmt.Errorf("mail service received an error, possibly because of limits")
+}
+
 func sendMail(req MailRequest) error {
-	from := mail.NewEmail(req.Sender, "hoagie@princeton.edu")
-	replyTo := mail.NewEmail(req.Sender, req.Email)
-	subject := req.Header
-
-	content := mail.NewContent("text/html", req.Body)
-
-	to := mail.NewEmail(req.Sender, req.Email)
-
-	message := mail.NewV3MailInit(from, subject, to, content)
-	message.SetReplyTo(replyTo)
-
-	tos := []*mail.Email{
-		mail.NewEmail(req.Sender, req.Email),
-	}
-	ccs := []*mail.Email{
-		mail.NewEmail("Butler", "BUTLERBUZZ@PRINCETON.EDU"),
-		mail.NewEmail("Whitman", "WHITMANWIRE@PRINCETON.EDU"),
-		mail.NewEmail("Rocky", "RockyWire@PRINCETON.EDU"),
-		mail.NewEmail("Forbes", "Re-INNformer@PRINCETON.EDU"),
-		mail.NewEmail("First", "FIRSTCOMEFIRSTSERV@PRINCETON.EDU"),
-		mail.NewEmail("Mathey", "matheymail@PRINCETON.EDU"),
-		mail.NewEmail("Hoagie Mail", "hoagie+mail@princeton.edu"),
-	}
-
-	p := mail.NewPersonalization()
-	p.AddTos(tos...)
-	p.AddCCs(ccs...)
-
-	message.AddPersonalizations(p)
-
-	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
-	resp, err := client.Send(message)
+	err := makeRequest(req)
 	if err != nil {
 		return err
 		// TODO: be better with status code handling. Most likely just == 400.
-	} else if resp.StatusCode == 400 {
-		return fmt.Errorf("reached the mail send limit for the day, try again tomorrow", resp.Body)
 	}
 	return nil
 }
@@ -110,7 +139,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	if notBetween(w, mailReq.Sender, "sender name", 3, 30) {
 		return
 	}
-	if notBetween(w, mailReq.Header, "email header", 3, 150) {
+	if notBetween(w, mailReq.Header, "email subject", 3, 150) {
 		return
 	}
 
