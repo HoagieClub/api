@@ -51,6 +51,8 @@ func makeRequest(req MailRequest) error {
 					Email: req.Email,
 					Name:  req.Sender,
 				},
+			},
+			Cc: &mailjet.RecipientsV31{
 				mailjet.RecipientV31{
 					Email: "BUTLERBUZZ@PRINCETON.EDU",
 					Name:  "Butler",
@@ -74,10 +76,6 @@ func makeRequest(req MailRequest) error {
 				mailjet.RecipientV31{
 					Email: "matheymail@PRINCETON.EDU",
 					Name:  "Mathey",
-				},
-				mailjet.RecipientV31{
-					Email: "hoagie@PRINCETON.EDU",
-					Name:  "Hoagie",
 				},
 			},
 			Subject:  req.Header,
