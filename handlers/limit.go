@@ -48,6 +48,13 @@ func getVisitor(email string) *rate.Limiter {
 	return v.limiter
 }
 
+// Deletes visitor limit, noop if not existent
+func deleteVisitor(email string) {
+	mu.Lock()
+	defer mu.Unlock()
+	delete(visitors, email)
+}
+
 // Every 6 hours check the map for visitors that haven't been seen for
 // more than 6 hours and delete the entries.
 func cleanupVisitors() {

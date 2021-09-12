@@ -132,12 +132,15 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	err = json.NewDecoder(r.Body).Decode(&mailReq)
 	if err != nil {
 		http.Error(w, "Message did not contain correct fields.", http.StatusBadRequest)
+		deleteVisitor(user)
 		return
 	}
 	if notBetween(w, mailReq.Sender, "sender name", 3, 30) {
+		deleteVisitor(user)
 		return
 	}
 	if notBetween(w, mailReq.Header, "email subject", 3, 150) {
+		deleteVisitor(user)
 		return
 	}
 
@@ -146,8 +149,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	mailReq.Body += fmt.Sprintf(`
 	<hr />
 	<div style="font-size:8pt;">This email was instantly sent to all
-	college listservs with <a href="https://mail.hoagie.io/">mail.hoagie.io</a>. 
-	Want to be part of projects like this? <a href="https://club.hoagie.io/">Apply to Hoagie!</a>
+	college listservs with <a href="https://mail.hoagie.io/">Hoagie Mail</a>. 
 	Email composed by %s — if you believe this email
 	is offensive, intentionally misleading or harmful, please report it to
 	<a href="mailto:hoagie@princeton.edu">hoagie@princeton.edu</a>.</div>
@@ -165,6 +167,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+		deleteVisitor(user)
 		return
 	}
 })
