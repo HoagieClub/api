@@ -3,12 +3,15 @@ package main
 import (
 	"fmt"
 	"hoagie-profile/auth"
+	"hoagie-profile/db"
 	"hoagie-profile/handlers"
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type Response struct {

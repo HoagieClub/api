@@ -14,6 +14,7 @@ require (
 	github.com/mailjet/mailjet-apiv3-go v0.0.0-20201009050126-c24bc15a9394
 	github.com/microcosm-cc/bluemonday v1.0.15
 	github.com/rs/cors v1.8.0
+	go.mongodb.org/mongo-driver v1.8.1 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gopkg.in/auth0.v5 v5.19.2 // indirect
 	gopkg.in/cas.v2 v2.2.2
