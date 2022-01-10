@@ -12,26 +12,31 @@ import (
 	"github.com/gorilla/mux"
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
 	"github.com/microcosm-cc/bluemonday"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
-	mailRoute     = "/mail"
-	mailSendRoute = "/mail/send"
+	mailRoute       = "/mail"
+	mailSendRoute   = "/mail/send"
+	mailDigestRoute = "/mail/digest"
 )
-
-// BlueMonday sanitizes HTML, preventing unsafe user input
-var p = bluemonday.UGCPolicy()
-
-func setupMailHandlers(r *mux.Router, m *jwtmiddleware.JWTMiddleware) {
-	// Handle mail send request
-	r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
-}
 
 type MailRequest struct {
 	Header string
 	Sender string
 	Body   string
 	Email  string
+}
+
+// BlueMonday sanitizes HTML, preventing unsafe user input
+var p = bluemonday.UGCPolicy()
+var client *mongo.Client
+
+func setupMailHandlers(r *mux.Router, m *jwtmiddleware.JWTMiddleware, cl *mongo.Client) {
+	// Handle mail send request
+	client = cl
+	r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
+	r.Handle(mailDigestRoute, m.Handler(digestSendHandler)).Methods("POST")
 }
 
 func makeRequest(req MailRequest) error {

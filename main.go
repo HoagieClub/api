@@ -11,17 +11,11 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/bson"
 )
 
 type Response struct {
 	Message string `json:"message"`
 }
-
-const (
-	mailApiRoute     = "/mail"
-	mailSendApiRoute = "/mail/send"
-)
 
 func main() {
 	godotenv.Load(".env.local")
@@ -31,12 +25,17 @@ func main() {
 	port := os.Getenv("PORT")
 	runtimeMode := os.Getenv("HOAGIE_MODE")
 
-	jwtMiddleware := auth.Middleware(domain, audience)
-
 	r := mux.NewRouter()
 	r.Host(hostname).Subrouter()
 
-	handlers.Setup(r, jwtMiddleware)
+	jwtMiddleware := auth.Middleware(domain, audience)
+
+	client, err := db.MongoClient()
+	if err != nil {
+		log.Fatal("Database connection error")
+	}
+
+	handlers.Setup(r, jwtMiddleware, client)
 
 	corsWrapper := auth.CorsWrapper(runtimeMode)
 
@@ -49,9 +48,14 @@ func main() {
 	█░█ █▀█ ▄▀█ █▀▀ █ █▀▀
 	█▀█ █▄█ █▀█ █▄█ █ ██▄
 	`)
-	fmt.Printf("[i] Running on https://%s:%s\n", hostname, port)
 	if runtimeMode == "debug" {
 		fmt.Println("[i] Debug mode is on.")
+		_, err := db.FindUser(client, "test@princeton.edu")
+		if err != nil {
+			fmt.Println("[i] Test user not found in debug mode...")
+			panic("Please configure the database.")
+		}
 	}
+	fmt.Printf("[i] Running on https://%s:%s\n", hostname, port)
 	server.ListenAndServe()
 }

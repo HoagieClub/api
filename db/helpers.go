@@ -97,3 +97,18 @@ func UpdateOne(
 	}
 	return result, nil
 }
+
+func UpdateUser(
+	client *mongo.Client,
+	user string,
+	updateOperation bson.D,
+) (*mongo.UpdateResult, error) {
+	return UpdateOne(client, "core", "users", bson.D{{"email", user}}, updateOperation)
+}
+
+func FindUser(
+	client *mongo.Client,
+	user string,
+) (bson.M, error) {
+	return FindOne(client, "core", "users", bson.D{{"email", user}})
+}
