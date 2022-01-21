@@ -26,22 +26,23 @@ func MongoClient() (*mongo.Client, error) {
 	return client, nil
 }
 
-// Find one document in a collection
+// Find one document in a collection.
+// NOTE: Make sure to pass a pointer instead of a value for the result
 func FindOne(
 	client *mongo.Client,
 	databaseName string,
 	collectionName string,
 	filter bson.D,
-) (bson.M, error) {
+	result interface{},
+) error {
 	coll := client.Database(databaseName).Collection(collectionName)
 	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
 	defer cancel()
-	var result bson.M
-	err := coll.FindOne(ctx, filter).Decode(&result)
+	err := coll.FindOne(ctx, filter).Decode(result)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return result, nil
+	return nil
 }
 
 // Find many documents in a collection
@@ -109,6 +110,7 @@ func UpdateUser(
 func FindUser(
 	client *mongo.Client,
 	user string,
-) (bson.M, error) {
-	return FindOne(client, "core", "users", bson.D{{"email", user}})
+	result interface{},
+) error {
+	return FindOne(client, "core", "users", bson.D{{"email", user}}, result)
 }

@@ -50,7 +50,8 @@ func main() {
 	`)
 	if runtimeMode == "debug" {
 		fmt.Println("[i] Debug mode is on.")
-		_, err := db.FindUser(client, "test@princeton.edu")
+		var user map[string]interface{}
+		err := db.FindUser(client, "test@princeton.edu", &user)
 		if err != nil {
 			fmt.Println("[i] Test user not found in debug mode...")
 			panic("Please configure the database.")
