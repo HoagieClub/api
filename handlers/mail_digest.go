@@ -31,8 +31,9 @@ var getCurrentDigest = func(user string) (DigestResponse, error) {
 	var response DigestResponse
 	err := db.FindOne(client, "apps", "mail", bson.D{{"email", user}}, &response)
 	if err != nil {
-		return DigestResponse{}, fmt.Errorf("Error getting digest: %s", err)
+		return DigestResponse{}, fmt.Errorf("error getting digest: %s", err)
 	}
+	response.Status = "used"
 	return response, nil
 }
 
@@ -63,7 +64,6 @@ var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 // POST /mail/digest
 var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	user, success := getUser(r.Header.Get("authorization"))
-
 	if !success {
 		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
 		return

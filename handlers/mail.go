@@ -36,6 +36,7 @@ func setupMailHandlers(r *mux.Router, m *jwtmiddleware.JWTMiddleware, cl *mongo.
 	// Handle mail send request
 	client = cl
 	r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
+	r.Handle(mailDigestRoute, m.Handler(digestSendHandler)).Methods("POST")
 	r.Handle(mailDigestRoute, m.Handler(digestStatusHandler)).Methods("GET")
 }
 
