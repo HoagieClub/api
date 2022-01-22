@@ -6,6 +6,7 @@ import (
 	"hoagie-profile/db"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -16,6 +17,7 @@ type DigestRequest struct {
 	Title       string
 	Category    string
 	Description string
+	Link        string
 	Email       string
 }
 
@@ -49,7 +51,7 @@ var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 	w.Header().Set("Content-Type", "application/json")
 	currentDigest, err := getCurrentDigest(user)
 	if err != nil || currentDigest.Title == "" {
-		result, _ := json.Marshal(map[string]string{"status": "unused"})
+		result, _ := json.Marshal(map[string]string{"Status": "unused"})
 		w.Write(result)
 		return
 	}
@@ -80,23 +82,46 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	// Category
 	if digestReq.Category != "Lost and found" && digestReq.Category != "Sale" {
 		http.Error(w, "Category must be lost and found or sale", http.StatusBadRequest)
+		deleteVisitor(user)
 		return
 	}
 
 	// Title length
-	if utf8.RuneCountInString(digestReq.Title) < 5 || utf8.RuneCountInString(digestReq.Title) > 100 {
-		http.Error(w, "Title needs to be between 5 and 200 characters inclusive.", http.StatusBadRequest)
+	if utf8.RuneCountInString(digestReq.Title) < 5 || utf8.RuneCountInString(digestReq.Title) > 50 {
+		http.Error(w, "Title needs to be between 5 and 50 characters inclusive.", http.StatusBadRequest)
+		deleteVisitor(user)
 		return
 	}
 
 	// Description Length
 	if utf8.RuneCountInString(digestReq.Description) < 5 || utf8.RuneCountInString(digestReq.Description) > 200 {
 		http.Error(w, "Description needs to be between 5 and 200 characters inclusive.", http.StatusBadRequest)
+		deleteVisitor(user)
+		return
 	}
-	current, err := getCurrentDigest(user)
-	if err != nil {
-		http.Error(w, "The Digest service is temporarily unavaialble.", http.StatusInternalServerError)
+
+	// Link
+	if len(digestReq.Link) > 0 {
+		if digestReq.Category == "Lost and found" {
+			if !strings.HasPrefix(digestReq.Link, "https://i.imgur.com/") {
+				http.Error(w, "Link must be a valid Imgur URL.", http.StatusBadRequest)
+				deleteVisitor(user)
+				return
+			}
+		} else if digestReq.Category == "Sale" {
+			if !strings.HasPrefix(digestReq.Link, "https://docs.google.com/") {
+				http.Error(w, "Link must be a valid Google Slides URL.", http.StatusBadRequest)
+				deleteVisitor(user)
+				return
+			}
+		} else {
+			http.Error(w, "You cannot include links in this category.", http.StatusBadRequest)
+			deleteVisitor(user)
+			return
+		}
 	}
+
+	current, _ := getCurrentDigest(user)
 	if current.Title != "" {
 		http.Error(w, "You have already an existing digest. Try deleting it and send again.", http.StatusBadRequest)
 		deleteVisitor(user)
@@ -108,7 +133,10 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 		{"email", user},
 		{"title", digestReq.Title},
 		{"description", digestReq.Description},
+		{"link", digestReq.Link},
 		{"category", digestReq.Category},
 		{"created_at", time.Now()},
 	})
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{\"Status\": \"OK\"}"))
 })
