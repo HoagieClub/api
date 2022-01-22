@@ -124,7 +124,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if userReachedLimit(user) {
+	if userReachedLimit(user.Email) {
 		http.Error(w, `
 			You have reached your send limit. 
 			You can only send one email every 6 hours. 
@@ -138,20 +138,20 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	err = json.NewDecoder(r.Body).Decode(&mailReq)
 	if err != nil {
 		http.Error(w, "Message did not contain correct fields.", http.StatusBadRequest)
-		deleteVisitor(user)
+		deleteVisitor(user.Email)
 		return
 	}
 	if notBetween(w, mailReq.Sender, "sender name", 3, 30) {
-		deleteVisitor(user)
+		deleteVisitor(user.Email)
 		return
 	}
 	if notBetween(w, mailReq.Header, "email subject", 3, 150) {
-		deleteVisitor(user)
+		deleteVisitor(user.Email)
 		return
 	}
 
 	// mailReq.Body = p.Sanitize(mailReq.Body)
-	mailReq.Email = user
+	mailReq.Email = user.Email
 	mailReq.Body += fmt.Sprintf(`
 	<hr />
 	<div style="font-size:8pt;">This email was instantly sent to all
@@ -173,7 +173,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
-		deleteVisitor(user)
+		deleteVisitor(user.Email)
 		return
 	}
 })

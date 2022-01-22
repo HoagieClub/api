@@ -54,7 +54,12 @@ func getPemCert(domain string, token *jwt.Token) (string, error) {
 	return cert, nil
 }
 
-func GetUser(accessToken string) (string, error) {
+type User struct {
+	Email string `json:"email"`
+	Name  string
+}
+
+func GetUser(accessToken string) (User, error) {
 	parser := jwt.Parser{}
 	claims := jwt.MapClaims{}
 
@@ -63,14 +68,22 @@ func GetUser(accessToken string) (string, error) {
 	_, _, err := parser.ParseUnverified(accessToken, claims)
 
 	if err != nil {
-		return "", err
+		return User{}, err
 	}
-	user := claims["https://hoagie.io/email"]
-	userString, ok := user.(string)
+	email := claims["https://hoagie.io/email"]
+	emailString, ok := email.(string)
 	if !ok {
-		return "", fmt.Errorf("username not string")
+		return User{}, fmt.Errorf("email not string")
 	}
-	return userString, nil
+	name := claims["https://hoagie.io/name"]
+	nameString, ok := name.(string)
+	if !ok {
+		return User{}, fmt.Errorf("name not string")
+	}
+	return User{
+		Email: emailString,
+		Name:  nameString,
+	}, nil
 }
 
 func Middleware(domain string, audience string) *jwtmiddleware.JWTMiddleware {

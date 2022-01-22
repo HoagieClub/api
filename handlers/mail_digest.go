@@ -49,7 +49,7 @@ var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	currentDigest, err := getCurrentDigest(user)
+	currentDigest, err := getCurrentDigest(user.Email)
 	if err != nil || currentDigest.Title == "" {
 		result, _ := json.Marshal(map[string]string{"Status": "unused"})
 		w.Write(result)
@@ -75,28 +75,28 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	err := json.NewDecoder(r.Body).Decode(&digestReq)
 	if err != nil {
 		http.Error(w, "Message did not contain correct fields.", http.StatusBadRequest)
-		deleteVisitor(user)
+		deleteVisitor(user.Email)
 		return
 	}
 	// Validation here
 	// Category
 	if digestReq.Category != "Lost and found" && digestReq.Category != "Sale" {
 		http.Error(w, "Category must be lost and found or sale", http.StatusBadRequest)
-		deleteVisitor(user)
+		deleteVisitor(user.Email)
 		return
 	}
 
 	// Title length
-	if utf8.RuneCountInString(digestReq.Title) < 5 || utf8.RuneCountInString(digestReq.Title) > 50 {
-		http.Error(w, "Title needs to be between 5 and 50 characters inclusive.", http.StatusBadRequest)
-		deleteVisitor(user)
+	if utf8.RuneCountInString(digestReq.Title) < 5 || utf8.RuneCountInString(digestReq.Title) > 100 {
+		http.Error(w, "Title needs to be between 5 and 100 characters inclusive.", http.StatusBadRequest)
+		deleteVisitor(user.Email)
 		return
 	}
 
 	// Description Length
 	if utf8.RuneCountInString(digestReq.Description) < 5 || utf8.RuneCountInString(digestReq.Description) > 200 {
 		http.Error(w, "Description needs to be between 5 and 200 characters inclusive.", http.StatusBadRequest)
-		deleteVisitor(user)
+		deleteVisitor(user.Email)
 		return
 	}
 
@@ -105,26 +105,26 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 		if digestReq.Category == "Lost and found" {
 			if !strings.HasPrefix(digestReq.Link, "https://i.imgur.com/") {
 				http.Error(w, "Link must be a valid Imgur URL.", http.StatusBadRequest)
-				deleteVisitor(user)
+				deleteVisitor(user.Email)
 				return
 			}
 		} else if digestReq.Category == "Sale" {
 			if !strings.HasPrefix(digestReq.Link, "https://docs.google.com/") {
 				http.Error(w, "Link must be a valid Google Slides URL.", http.StatusBadRequest)
-				deleteVisitor(user)
+				deleteVisitor(user.Email)
 				return
 			}
 		} else {
 			http.Error(w, "You cannot include links in this category.", http.StatusBadRequest)
-			deleteVisitor(user)
+			deleteVisitor(user.Email)
 			return
 		}
 	}
 
-	current, _ := getCurrentDigest(user)
+	current, _ := getCurrentDigest(user.Email)
 	if current.Title != "" {
 		http.Error(w, "You have already an existing digest. Try deleting it and send again.", http.StatusBadRequest)
-		deleteVisitor(user)
+		deleteVisitor(user.Email)
 		return
 	}
 
