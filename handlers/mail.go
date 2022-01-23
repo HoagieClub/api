@@ -38,6 +38,7 @@ func setupMailHandlers(r *mux.Router, m *jwtmiddleware.JWTMiddleware, cl *mongo.
 	r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
 	r.Handle(mailDigestRoute, m.Handler(digestSendHandler)).Methods("POST")
 	r.Handle(mailDigestRoute, m.Handler(digestStatusHandler)).Methods("GET")
+	r.Handle(mailDigestRoute, m.Handler(digestDeleteHandler)).Methods("DELETE")
 }
 
 func makeRequest(req MailRequest) error {

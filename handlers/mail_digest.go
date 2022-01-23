@@ -140,3 +140,26 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{\"Status\": \"OK\"}"))
 })
+
+// DELETE /mail/digest
+var digestDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	user, success := getUser(r.Header.Get("authorization"))
+	if !success {
+		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
+		return
+	}
+
+	current, _ := getCurrentDigest(user.Email)
+	if current.Title == "" {
+		http.Error(w, "You do not have an existing digest message. Please create one first.", http.StatusBadRequest)
+		deleteVisitor(user.Email)
+		return
+	}
+
+	// Add the digest request to the user's digest queue
+	db.DeleteOne(client, "apps", "mail", bson.D{
+		{"email", user},
+	})
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{\"Status\": \"OK\"}"))
+})

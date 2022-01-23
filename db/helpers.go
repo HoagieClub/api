@@ -99,6 +99,24 @@ func UpdateOne(
 	return result, nil
 }
 
+// Delete one existing document in a collection
+func DeleteOne(
+	client *mongo.Client,
+	databaseName string,
+	collectionName string,
+	filter bson.D,
+) (*mongo.DeleteResult, error) {
+	coll := client.Database(databaseName).Collection(collectionName)
+	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
+	defer cancel()
+	var result *mongo.DeleteResult
+	result, err := coll.DeleteOne(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func UpdateUser(
 	client *mongo.Client,
 	user string,
