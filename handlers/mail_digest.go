@@ -130,7 +130,7 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 
 	// Add the digest request to the user's digest queue
 	db.InsertOne(client, "apps", "mail", bson.D{
-		{"email", user},
+		{"email", user.Email},
 		{"title", digestReq.Title},
 		{"description", digestReq.Description},
 		{"link", digestReq.Link},
