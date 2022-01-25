@@ -29,6 +29,12 @@ type DigestResponse struct {
 	Status      string
 }
 
+var categories = map[string]string{
+	"lost": "Lost & Found",
+	"sale": "Sale",
+	"misc": "Miscellaneous",
+}
+
 var getCurrentDigest = func(user string) (DigestResponse, error) {
 	var response DigestResponse
 	err := db.FindOne(client, "apps", "mail", bson.D{{"email", user}}, &response)
@@ -57,6 +63,7 @@ var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 	}
 	jsonResp, err := json.Marshal(currentDigest)
 	currentDigest.Status = "used"
+	currentDigest.Category = categories[currentDigest.Category]
 	if err != nil {
 		log.Fatalf("Error happened in response marshalling. %s", err)
 	}
@@ -80,8 +87,9 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	}
 	// Validation here
 	// Category
-	if digestReq.Category != "Lost and found" && digestReq.Category != "Sale" {
-		http.Error(w, "Category must be lost and found or sale", http.StatusBadRequest)
+	_, categoryExists := categories[digestReq.Category]
+	if !categoryExists {
+		http.Error(w, "Wrong category, try again later.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
@@ -102,13 +110,13 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 
 	// Link
 	if len(digestReq.Link) > 0 {
-		if digestReq.Category == "Lost and found" {
+		if digestReq.Category == "lost" {
 			if !strings.HasPrefix(digestReq.Link, "https://i.imgur.com/") {
 				http.Error(w, "Link must be a valid Imgur URL.", http.StatusBadRequest)
 				deleteVisitor(user.Email)
 				return
 			}
-		} else if digestReq.Category == "Sale" {
+		} else if digestReq.Category == "sale" {
 			if !strings.HasPrefix(digestReq.Link, "https://docs.google.com/") {
 				http.Error(w, "Link must be a valid Google Slides URL.", http.StatusBadRequest)
 				deleteVisitor(user.Email)

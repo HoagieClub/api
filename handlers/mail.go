@@ -166,6 +166,8 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		println(mailReq.Email)
 		println(mailReq.Header)
 		println(mailReq.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("{\"Status\": \"OK\"}"))
 		return
 	}
 	err = sendMail(mailReq)
@@ -177,4 +179,6 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		deleteVisitor(user.Email)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte("{\"Status\": \"OK\"}"))
 })
