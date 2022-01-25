@@ -87,15 +87,15 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	}
 
 	// Title length
-	if utf8.RuneCountInString(digestReq.Title) < 5 || utf8.RuneCountInString(digestReq.Title) > 100 {
-		http.Error(w, "Title needs to be between 5 and 100 characters inclusive.", http.StatusBadRequest)
+	if utf8.RuneCountInString(digestReq.Title) < 3 || utf8.RuneCountInString(digestReq.Title) > 100 {
+		http.Error(w, "Title needs to be between 3 and 100 characters inclusive.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 
 	// Description Length
-	if utf8.RuneCountInString(digestReq.Description) < 5 || utf8.RuneCountInString(digestReq.Description) > 200 {
-		http.Error(w, "Description needs to be between 5 and 200 characters inclusive.", http.StatusBadRequest)
+	if utf8.RuneCountInString(digestReq.Description) < 3 || utf8.RuneCountInString(digestReq.Description) > 200 {
+		http.Error(w, "Description needs to be between 3 and 200 characters inclusive.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
@@ -131,6 +131,7 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	// Add the digest request to the user's digest queue
 	db.InsertOne(client, "apps", "mail", bson.D{
 		{"email", user.Email},
+		{"name", user.Name},
 		{"title", digestReq.Title},
 		{"description", digestReq.Description},
 		{"link", digestReq.Link},
@@ -157,9 +158,14 @@ var digestDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 	}
 
 	// Add the digest request to the user's digest queue
-	db.DeleteOne(client, "apps", "mail", bson.D{
-		{"email", user},
+	_, err := db.DeleteOne(client, "apps", "mail", bson.D{
+		{"email", user.Email},
 	})
+	if err != nil {
+		http.Error(w, "You do not have an existing digest message.", http.StatusBadRequest)
+		deleteVisitor(user.Email)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{\"Status\": \"OK\"}"))
 })
