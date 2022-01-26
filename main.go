@@ -32,7 +32,7 @@ func main() {
 
 	client, err := db.MongoClient()
 	if err != nil {
-		log.Fatal("Database connection error")
+		log.Fatal("Database connection error" + err.Error())
 	}
 
 	handlers.Setup(r, jwtMiddleware, client)
