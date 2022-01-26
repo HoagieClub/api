@@ -116,6 +116,7 @@ func userReachedLimit(user string) bool {
 	return !userLimit.Allow()
 }
 
+// POST /mail/send
 var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	accessToken := strings.TrimPrefix(r.Header.Get("authorization"), "Bearer ")
 
@@ -133,6 +134,10 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 			please contact hoagie@princeton.edu`,
 			http.StatusTooManyRequests)
 		return
+	}
+
+	if len(user.Name) == 0 {
+		http.Error(w, `Hoagie Mail has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
 	}
 
 	var mailReq MailRequest
@@ -157,10 +162,10 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	<hr />
 	<div style="font-size:8pt;">This email was instantly sent to all
 	college listservs with <a href="https://mail.hoagie.io/">Hoagie Mail</a>. 
-	Email composed by %s — if you believe this email
+	Email composed by %s (%s) — if you believe this email
 	is offensive, intentionally misleading or harmful, please report it to
 	<a href="mailto:hoagie@princeton.edu">hoagie@princeton.edu</a>.</div>
-	`, mailReq.Email)
+	`, user.Name, mailReq.Email)
 
 	if os.Getenv("HOAGIE_MODE") == "debug" {
 		println(mailReq.Email)

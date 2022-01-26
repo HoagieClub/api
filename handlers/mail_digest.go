@@ -78,6 +78,10 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	if len(user.Name) == 0 {
+		http.Error(w, `Hoagie Mail has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
+	}
+
 	var digestReq DigestRequest
 	err := json.NewDecoder(r.Body).Decode(&digestReq)
 	if err != nil {
