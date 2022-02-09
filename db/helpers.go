@@ -132,3 +132,18 @@ func FindUser(
 ) error {
 	return FindOne(client, "core", "users", bson.D{{"email", user}}, result)
 }
+
+// Drop all documents in a collection
+func Drop(
+	client *mongo.Client,
+	databaseName string,
+	collectionName string,
+) error {
+	coll := client.Database(databaseName).Collection(collectionName)
+	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
+	defer cancel()
+	if err := coll.Drop(ctx); err != nil {
+		return err
+	}
+	return nil
+}
