@@ -106,7 +106,7 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	}
 
 	// Description Length
-	if utf8.RuneCountInString(digestReq.Description) < 3 || utf8.RuneCountInString(digestReq.Description) > 200 {
+	if utf8.RuneCountInString(digestReq.Description) < 3 || utf8.RuneCountInString(digestReq.Description) > 300 {
 		http.Error(w, "Description needs to be between 3 and 200 characters inclusive.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
