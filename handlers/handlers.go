@@ -6,6 +6,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func Setup(router *mux.Router, middleware *jwtmiddleware.JWTMiddleware, client *mongo.Client) {
-	setupMailHandlers(router, middleware, client)
+var client *mongo.Client
+
+func Setup(r *mux.Router, m *jwtmiddleware.JWTMiddleware, cl *mongo.Client) {
+	// Handle mail send request
+	client = cl
+	r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
+	r.Handle(stuffUserRoute, m.Handler(digestSendHandler)).Methods("POST")
+	r.Handle(stuffUserRoute, m.Handler(digestStatusHandler)).Methods("GET")
+	r.Handle(stuffUserRoute, m.Handler(digestDeleteHandler)).Methods("DELETE")
 }

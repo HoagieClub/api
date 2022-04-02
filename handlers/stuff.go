@@ -13,25 +13,30 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+const (
+	stuffRoute     = "/stuff"
+	stuffUserRoute = "/stuff/user"
+)
+
 type UserData struct {
-	email string
-	name  string
-	phone string
+	Email string
+	Name  string
+	Phone string
 }
 
 type PostData struct {
-	id          string
-	title       string
-	description string
+	Id          string
+	Title       string
+	Description string
 	// Type of the post
-	typePost string
+	TypePost string
 	// Imgur URL to the image
-	thumbnail string
+	Thumbnail string
 	// Link to the post
-	link string
+	Link string
 	// Tags of the post
-	tags   []string
-	user   UserData
+	Tags   []string
+	User   UserData
 	Status string
 }
 
@@ -72,17 +77,17 @@ var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 	currentDigest, err := getCurrentDigest(user.Email)
-	if err != nil || currentDigest.title == "" {
+	if err != nil || currentDigest.Title == "" {
 		result, _ := json.Marshal(map[string]string{"Status": "unused"})
 		w.Write(result)
 		return
 	}
 
 	var userData UserData
-	userData.email = user.Email
-	userData.name = user.Name
+	userData.Email = user.Email
+	userData.Name = user.Name
 
-	currentDigest.user = userData
+	currentDigest.User = userData
 
 	jsonResp, err := json.Marshal(currentDigest)
 	currentDigest.Status = "used"
@@ -102,7 +107,7 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	}
 
 	if len(user.Name) == 0 {
-		http.Error(w, `Hoagie Mail has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
+		http.Error(w, `Hoagie has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
 	}
 
 	var postReq PostData
@@ -114,16 +119,16 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	}
 	// Validation here
 	// Ensure type of post is valid
-	if !postTypes[postReq.typePost] {
+	if !postTypes[postReq.TypePost] {
 		http.Error(w, "Invalid type, try again later.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 
 	// Ensure that tags are valid
-	var numTags int = len(postReq.tags)
+	var numTags int = len(postReq.Tags)
 	for i := 0; i < numTags; i++ {
-		if !tagTypes[postReq.tags[i]] {
+		if !tagTypes[postReq.Tags[i]] {
 			http.Error(w, "Invalid tag, try again later.", http.StatusBadRequest)
 			deleteVisitor(user.Email)
 			return
@@ -131,29 +136,29 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	}
 
 	// Title length
-	if utf8.RuneCountInString(postReq.title) < 3 || utf8.RuneCountInString(postReq.title) > 100 {
+	if utf8.RuneCountInString(postReq.Title) < 3 || utf8.RuneCountInString(postReq.Title) > 100 {
 		http.Error(w, "Title needs to be between 3 and 100 characters inclusive.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 
 	// Description Length
-	if utf8.RuneCountInString(postReq.description) < 3 || utf8.RuneCountInString(postReq.description) > 300 {
+	if utf8.RuneCountInString(postReq.Description) < 3 || utf8.RuneCountInString(postReq.Description) > 300 {
 		http.Error(w, "Description needs to be between 3 and 200 characters inclusive.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 
 	// Link
-	if len(postReq.link) > 0 {
-		if postReq.typePost == "lost" {
-			if !strings.HasPrefix(postReq.link, "https://i.imgur.com/") {
+	if len(postReq.Link) > 0 {
+		if postReq.TypePost == "lost" {
+			if !strings.HasPrefix(postReq.Link, "https://i.imgur.com/") {
 				http.Error(w, "Link must be a valid Imgur URL.", http.StatusBadRequest)
 				deleteVisitor(user.Email)
 				return
 			}
-		} else if postReq.typePost == "sale" {
-			if !strings.HasPrefix(postReq.link, "https://docs.google.com/") {
+		} else if postReq.TypePost == "sale" {
+			if !strings.HasPrefix(postReq.Link, "https://docs.google.com/") {
 				http.Error(w, "Link must be a valid Google Slides URL.", http.StatusBadRequest)
 				deleteVisitor(user.Email)
 				return
@@ -166,7 +171,7 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	}
 
 	current, _ := getCurrentDigest(user.Email)
-	if current.title != "" {
+	if current.Title != "" {
 		http.Error(w, "You have already an existing digest. Try deleting it and send again.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
@@ -177,13 +182,13 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	db.InsertOne(client, "apps", "stuff", bson.D{
 		{"email", user.Email},
 		{"name", user.Name},
-		{"id", postReq.id},
-		{"title", postReq.title},
-		{"description", postReq.description},
-		{"thumbnail", postReq.thumbnail},
-		{"typePost", postReq.typePost},
-		{"link", postReq.link},
-		{"tags", postReq.tags},
+		{"id", postReq.Id},
+		{"title", postReq.Title},
+		{"description", postReq.Description},
+		{"thumbnail", postReq.Thumbnail},
+		{"typePost", postReq.TypePost},
+		{"link", postReq.Link},
+		{"tags", postReq.Tags},
 		{"created_at", time.Now()},
 	})
 	w.Header().Set("Content-Type", "application/json")
@@ -199,7 +204,7 @@ var digestDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 	}
 
 	current, _ := getCurrentDigest(user.Email)
-	if current.title == "" {
+	if current.Title == "" {
 		http.Error(w, "You do not have an existing digest message. Please create one first.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return

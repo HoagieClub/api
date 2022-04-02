@@ -8,18 +8,13 @@ import (
 	"os"
 	"strings"
 
-	jwtmiddleware "github.com/auth0/go-jwt-middleware"
-	"github.com/gorilla/mux"
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
 	"github.com/microcosm-cc/bluemonday"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
-	mailRoute      = "/mail"
-	mailSendRoute  = "/mail/send"
-	stuffRoute     = "/stuff"
-	stuffUserRoute = "/stuff/user"
+	mailRoute     = "/mail"
+	mailSendRoute = "/mail/send"
 )
 
 type MailRequest struct {
@@ -31,16 +26,6 @@ type MailRequest struct {
 
 // BlueMonday sanitizes HTML, preventing unsafe user input
 var p = bluemonday.UGCPolicy()
-var client *mongo.Client
-
-func setupMailHandlers(r *mux.Router, m *jwtmiddleware.JWTMiddleware, cl *mongo.Client) {
-	// Handle mail send request
-	client = cl
-	r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
-	r.Handle(stuffUserRoute, m.Handler(digestSendHandler)).Methods("POST")
-	r.Handle(stuffUserRoute, m.Handler(digestStatusHandler)).Methods("GET")
-	r.Handle(stuffUserRoute, m.Handler(digestDeleteHandler)).Methods("DELETE")
-}
 
 func makeRequest(req MailRequest) error {
 	mailjetClient := mailjet.NewMailjetClient(os.Getenv("MAILJET_PUBLIC_KEY"), os.Getenv("MAILJET_PRIVATE_KEY"))
