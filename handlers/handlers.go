@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"fmt"
+
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
 	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -15,4 +17,11 @@ func Setup(r *mux.Router, m *jwtmiddleware.JWTMiddleware, cl *mongo.Client) {
 	r.Handle(stuffUserRoute, m.Handler(digestSendHandler)).Methods("POST")
 	r.Handle(stuffUserRoute, m.Handler(digestStatusHandler)).Methods("GET")
 	r.Handle(stuffUserRoute, m.Handler(digestDeleteHandler)).Methods("DELETE")
+
+	princeton_token, err := _refreshToken()
+	if err != nil {
+		fmt.Println("Error getting Princeton API token, not going to setup campus handlers.")
+		return
+	}
+	print(princeton_token)
 }
