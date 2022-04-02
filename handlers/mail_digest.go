@@ -13,39 +13,55 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-type DigestRequest struct {
-	Title       string
-	Category    string
-	Description string
-	Link        string
-	Email       string
+type UserData struct {
+	email string
+	name  string
+	phone string
 }
 
-type DigestResponse struct {
-	Title       string
-	Category    string
-	Description string
-	Email       string
-	Status      string
+type PostData struct {
+	id          string
+	title       string
+	description string
+	// Type of the post
+	typePost string
+	// Imgur URL to the image
+	thumbnail string
+	// Link to the post
+	link string
+	// Tags of the post
+	tags   []string
+	user   UserData
+	Status string
 }
 
-var categories = map[string]string{
-	"lost": "Lost & Found",
-	"sale": "Sale",
-	"misc": "Miscellaneous",
+var postTypes = map[string]bool{
+	"sale":     true,
+	"selling":  true,
+	"lost":     true,
+	"bulletin": true,
 }
 
-var getCurrentDigest = func(user string) (DigestResponse, error) {
-	var response DigestResponse
+var tagTypes = map[string]bool{
+	"tech":          true,
+	"clothing":      true,
+	"help":          true,
+	"opportunities": true,
+	"lost":          true,
+	"found":         true,
+}
+
+var getCurrentDigest = func(user string) (PostData, error) {
+	var response PostData
 	err := db.FindOne(client, "apps", "mail", bson.D{{"email", user}}, &response)
 	if err != nil {
-		return DigestResponse{}, fmt.Errorf("error getting digest: %s", err)
+		return PostData{}, fmt.Errorf("error getting digest: %s", err)
 	}
 	response.Status = "used"
 	return response, nil
 }
 
-// GET /mail/digest
+// GET /stuff/user
 var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	user, success := getUser(r.Header.Get("authorization"))
 
@@ -56,21 +72,28 @@ var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 	currentDigest, err := getCurrentDigest(user.Email)
-	if err != nil || currentDigest.Title == "" {
+	if err != nil || currentDigest.title == "" {
 		result, _ := json.Marshal(map[string]string{"Status": "unused"})
 		w.Write(result)
 		return
 	}
+
+	var userData UserData
+	userData.email = user.Email
+	userData.name = user.Name
+
+	currentDigest.user = userData
+
 	jsonResp, err := json.Marshal(currentDigest)
 	currentDigest.Status = "used"
-	currentDigest.Category = categories[currentDigest.Category]
+
 	if err != nil {
 		log.Fatalf("Error happened in response marshalling. %s", err)
 	}
 	w.Write(jsonResp)
 })
 
-// POST /mail/digest
+// POST /stuff
 var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	user, success := getUser(r.Header.Get("authorization"))
 	if !success {
@@ -82,46 +105,55 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 		http.Error(w, `Hoagie Mail has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
 	}
 
-	var digestReq DigestRequest
-	err := json.NewDecoder(r.Body).Decode(&digestReq)
+	var postReq PostData
+	err := json.NewDecoder(r.Body).Decode(&postReq)
 	if err != nil {
 		http.Error(w, "Message did not contain correct fields.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 	// Validation here
-	// Category
-	_, categoryExists := categories[digestReq.Category]
-	if !categoryExists {
-		http.Error(w, "Wrong category, try again later.", http.StatusBadRequest)
+	// Ensure type of post is valid
+	if !postTypes[postReq.typePost] {
+		http.Error(w, "Invalid type, try again later.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 
+	// Ensure that tags are valid
+	var numTags int = len(postReq.tags)
+	for i := 0; i < numTags; i++ {
+		if !tagTypes[postReq.tags[i]] {
+			http.Error(w, "Invalid tag, try again later.", http.StatusBadRequest)
+			deleteVisitor(user.Email)
+			return
+		}
+	}
+
 	// Title length
-	if utf8.RuneCountInString(digestReq.Title) < 3 || utf8.RuneCountInString(digestReq.Title) > 100 {
+	if utf8.RuneCountInString(postReq.title) < 3 || utf8.RuneCountInString(postReq.title) > 100 {
 		http.Error(w, "Title needs to be between 3 and 100 characters inclusive.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 
 	// Description Length
-	if utf8.RuneCountInString(digestReq.Description) < 3 || utf8.RuneCountInString(digestReq.Description) > 300 {
+	if utf8.RuneCountInString(postReq.description) < 3 || utf8.RuneCountInString(postReq.description) > 300 {
 		http.Error(w, "Description needs to be between 3 and 200 characters inclusive.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 
 	// Link
-	if len(digestReq.Link) > 0 {
-		if digestReq.Category == "lost" {
-			if !strings.HasPrefix(digestReq.Link, "https://i.imgur.com/") {
+	if len(postReq.link) > 0 {
+		if postReq.typePost == "lost" {
+			if !strings.HasPrefix(postReq.link, "https://i.imgur.com/") {
 				http.Error(w, "Link must be a valid Imgur URL.", http.StatusBadRequest)
 				deleteVisitor(user.Email)
 				return
 			}
-		} else if digestReq.Category == "sale" {
-			if !strings.HasPrefix(digestReq.Link, "https://docs.google.com/") {
+		} else if postReq.typePost == "sale" {
+			if !strings.HasPrefix(postReq.link, "https://docs.google.com/") {
 				http.Error(w, "Link must be a valid Google Slides URL.", http.StatusBadRequest)
 				deleteVisitor(user.Email)
 				return
@@ -134,27 +166,31 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	}
 
 	current, _ := getCurrentDigest(user.Email)
-	if current.Title != "" {
+	if current.title != "" {
 		http.Error(w, "You have already an existing digest. Try deleting it and send again.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 
-	// Add the digest request to the user's digest queue
-	db.InsertOne(client, "apps", "mail", bson.D{
+	// Add the digest request to the user's digest queue; the MongoDB document decomposes PostData and UserData
+	// into their constitutent elements
+	db.InsertOne(client, "apps", "stuff", bson.D{
 		{"email", user.Email},
 		{"name", user.Name},
-		{"title", digestReq.Title},
-		{"description", digestReq.Description},
-		{"link", digestReq.Link},
-		{"category", digestReq.Category},
+		{"id", postReq.id},
+		{"title", postReq.title},
+		{"description", postReq.description},
+		{"thumbnail", postReq.thumbnail},
+		{"typePost", postReq.typePost},
+		{"link", postReq.link},
+		{"tags", postReq.tags},
 		{"created_at", time.Now()},
 	})
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{\"Status\": \"OK\"}"))
 })
 
-// DELETE /mail/digest
+// DELETE /stuff/user
 var digestDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	user, success := getUser(r.Header.Get("authorization"))
 	if !success {
@@ -163,13 +199,13 @@ var digestDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 	}
 
 	current, _ := getCurrentDigest(user.Email)
-	if current.Title == "" {
+	if current.title == "" {
 		http.Error(w, "You do not have an existing digest message. Please create one first.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
 
-	// Add the digest request to the user's digest queue
+	// Remove the digest request from the user's digest queue
 	_, err := db.DeleteOne(client, "apps", "mail", bson.D{
 		{"email", user.Email},
 	})
