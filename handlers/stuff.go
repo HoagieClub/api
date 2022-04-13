@@ -9,13 +9,10 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+	"context"
 
 	"go.mongodb.org/mongo-driver/bson"
-)
-
-const (
-	stuffRoute     = "/stuff"
-	stuffUserRoute = "/stuff/user"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type UserData struct {
@@ -66,6 +63,34 @@ var getCurrentDigest = func(user string) (PostData, error) {
 	return response, nil
 }
 
+var getAllStuff = func() ([]PostData, error) {
+	var responses []PostData
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{{"created_at", -1}})
+
+	resultCursor, err := db.FindMany(client, "apps", "stuff", bson.D{}, findOptions)
+	if err != nil {
+		return []PostData{}, fmt.Errorf("error getting stuff: %s", err)
+	}
+
+	// Convert from Cursor to PostData
+	for resultCursor.Next(context.TODO()) {
+		var decodedResult PostData
+		err := resultCursor.Decode(&decodedResult)
+
+		if err != nil {
+			return []PostData{}, fmt.Errorf("error getting stuff: %s", err)
+		}
+
+		responses = append(responses, decodedResult)
+	}
+
+	// Close the Cursor
+	defer resultCursor.Close(context.TODO())
+	
+	return responses, nil
+}
+
 // GET /stuff/user
 var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	user, success := getUser(r.Header.Get("authorization"))
@@ -83,14 +108,42 @@ var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	// Construct user data
 	var userData UserData
 	userData.Email = user.Email
 	userData.Name = user.Name
 
+	// Construct currentDigest
 	currentDigest.User = userData
-
-	jsonResp, err := json.Marshal(currentDigest)
 	currentDigest.Status = "used"
+
+	// Create JSON response
+	jsonResp, err := json.Marshal(currentDigest)
+
+	if err != nil {
+		log.Fatalf("Error happened in response marshalling. %s", err)
+	}
+	w.Write(jsonResp)
+})
+
+// GET /stuff
+var stuffGeneralHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	_, success := getUser(r.Header.Get("authorization"))
+
+	if !success {
+		http.Error(w, "You do not have access to the Hoagie API.", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	allStuff, err := getAllStuff()
+	if err != nil {
+		http.Error(w, "You do not have access to stuff.", http.StatusBadRequest)
+		return
+	}
+
+	// Create JSON response
+	jsonResp, err := json.Marshal(allStuff)
 
 	if err != nil {
 		log.Fatalf("Error happened in response marshalling. %s", err)

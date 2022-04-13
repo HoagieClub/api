@@ -12,10 +12,6 @@ import (
 	"github.com/microcosm-cc/bluemonday"
 )
 
-const (
-	mailRoute     = "/mail"
-	mailSendRoute = "/mail/send"
-)
 
 type MailRequest struct {
 	Header string
