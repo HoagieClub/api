@@ -51,11 +51,12 @@ func FindMany(
 	databaseName string,
 	collectionName string,
 	filter bson.D,
+	options *options.FindOptions,
 ) (*mongo.Cursor, error) {
 	coll := client.Database(databaseName).Collection(collectionName)
 	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
 	defer cancel()
-	result, err := coll.Find(ctx, filter)
+	result, err := coll.Find(ctx, filter, options)
 	if err != nil {
 		return nil, err
 	}

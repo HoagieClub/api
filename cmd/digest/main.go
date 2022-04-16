@@ -12,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/mailjet/mailjet-apiv3-go"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var REQUEST_TIMEOUT = 10 * time.Second
@@ -87,7 +88,7 @@ func runDigestScript() {
 	ctx := context.Background()
 	defer client.Disconnect(ctx)
 
-	cursor, err := db.FindMany(client, "apps", "mail", bson.D{})
+	cursor, err := db.FindMany(client, "apps", "mail", bson.D{}, options.Find())
 	if err != nil {
 		panic("Error getting digest emails" + err.Error())
 	}
