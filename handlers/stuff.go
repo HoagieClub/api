@@ -25,8 +25,8 @@ type PostData struct {
 	Id          string
 	Title       string
 	Description string
-	// Type of the post
-	TypePost string
+	// Category of the post
+	Category string
 	// Imgur URL to the image
 	Thumbnail string
 	// Link to the post
@@ -37,6 +37,7 @@ type PostData struct {
 	Status string
 }
 
+// All valid post categories
 var postTypes = map[string]bool{
 	"sale":     true,
 	"selling":  true,
@@ -44,18 +45,27 @@ var postTypes = map[string]bool{
 	"bulletin": true,
 }
 
+// All valid types
 var tagTypes = map[string]bool{
-	"tech":          true,
-	"clothing":      true,
+	// Bulletin
+	"announcement":  true,
 	"help":          true,
 	"opportunities": true,
-	"lost":          true,
-	"found":         true,
+	// Lost & Found
+	"lost":  true,
+	"found": true,
+	// Sale
+	"accessories": true,
+	"clothing":    true,
+	"tech":        true,
+	"furniture":   true,
+	"school":      true,
+	"tickets":     true,
 }
 
 var getCurrentDigest = func(user string) (PostData, error) {
 	var response PostData
-	err := db.FindOne(client, "apps", "mail", bson.D{{"email", user}}, &response)
+	err := db.FindOne(client, "apps", "stuff", bson.D{{"email", user}}, &response)
 	if err != nil {
 		return PostData{}, fmt.Errorf("error getting digest: %s", err)
 	}
@@ -95,7 +105,7 @@ var getAllStuff = func() ([]PostData, error) {
 }
 
 // GET /stuff/user
-var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var stuffUserHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	user, success := getUser(r.Header.Get("authorization"))
 
 	if !success {
@@ -105,7 +115,7 @@ var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 
 	w.Header().Set("Content-Type", "application/json")
 	currentDigest, err := getCurrentDigest(user.Email)
-	if err != nil || currentDigest.Title == "" {
+	if err != nil {
 		result, _ := json.Marshal(map[string]string{"Status": "unused"})
 		w.Write(result)
 		return
@@ -130,7 +140,7 @@ var digestStatusHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 })
 
 // GET /stuff
-var stuffGeneralHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var stuffAllHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	_, success := getUser(r.Header.Get("authorization"))
 
 	if !success {
@@ -155,7 +165,7 @@ var stuffGeneralHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 })
 
 // POST /stuff
-var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var stuffSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	user, success := getUser(r.Header.Get("authorization"))
 	if !success {
 		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
@@ -168,6 +178,10 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 
 	var postReq PostData
 	err := json.NewDecoder(r.Body).Decode(&postReq)
+
+	postReq.User.Name = user.Name
+	postReq.User.Email = user.Email
+
 	if err != nil {
 		http.Error(w, "Message did not contain correct fields.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
@@ -175,8 +189,8 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	}
 	// Validation here
 	// Ensure type of post is valid
-	if !postTypes[postReq.TypePost] {
-		http.Error(w, "Invalid type, try again later.", http.StatusBadRequest)
+	if !postTypes[postReq.Category] {
+		http.Error(w, "Invalid category of the post.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
 	}
@@ -185,17 +199,19 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	var numTags int = len(postReq.Tags)
 	for i := 0; i < numTags; i++ {
 		if !tagTypes[postReq.Tags[i]] {
-			http.Error(w, "Invalid tag, try again later.", http.StatusBadRequest)
+			http.Error(w, "Invalid tag used.", http.StatusBadRequest)
 			deleteVisitor(user.Email)
 			return
 		}
 	}
 
 	// Title length
-	if utf8.RuneCountInString(postReq.Title) < 3 || utf8.RuneCountInString(postReq.Title) > 100 {
-		http.Error(w, "Title needs to be between 3 and 100 characters inclusive.", http.StatusBadRequest)
-		deleteVisitor(user.Email)
-		return
+	if postReq.Category == "bulletin" || postReq.Category == "lost" {
+		if utf8.RuneCountInString(postReq.Title) < 3 || utf8.RuneCountInString(postReq.Title) > 100 {
+			http.Error(w, "Title needs to be between 3 and 100 characters inclusive.", http.StatusBadRequest)
+			deleteVisitor(user.Email)
+			return
+		}
 	}
 
 	// Description Length
@@ -207,13 +223,13 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 
 	// Link
 	if len(postReq.Link) > 0 {
-		if postReq.TypePost == "lost" {
+		if postReq.Category == "lost" {
 			if !strings.HasPrefix(postReq.Link, "https://i.imgur.com/") {
 				http.Error(w, "Link must be a valid Imgur URL.", http.StatusBadRequest)
 				deleteVisitor(user.Email)
 				return
 			}
-		} else if postReq.TypePost == "sale" {
+		} else if postReq.Category == "sale" {
 			if !strings.HasPrefix(postReq.Link, "https://docs.google.com/") {
 				http.Error(w, "Link must be a valid Google Slides URL.", http.StatusBadRequest)
 				deleteVisitor(user.Email)
@@ -237,12 +253,12 @@ var digestSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Req
 	// into their constitutent elements
 	db.InsertOne(client, "apps", "stuff", bson.D{
 		{"email", user.Email},
-		{"name", user.Name},
+		{"user", postReq.User},
 		{"id", postReq.Id},
 		{"title", postReq.Title},
 		{"description", postReq.Description},
 		{"thumbnail", postReq.Thumbnail},
-		{"typePost", postReq.TypePost},
+		{"category", postReq.Category},
 		{"link", postReq.Link},
 		{"tags", postReq.Tags},
 		{"created_at", time.Now()},
@@ -267,7 +283,7 @@ var digestDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 	}
 
 	// Remove the digest request from the user's digest queue
-	_, err := db.DeleteOne(client, "apps", "mail", bson.D{
+	_, err := db.DeleteOne(client, "apps", "stuff", bson.D{
 		{"email", user.Email},
 	})
 	if err != nil {

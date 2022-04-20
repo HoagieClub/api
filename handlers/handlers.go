@@ -23,10 +23,10 @@ func Setup(r *mux.Router, m *jwtmiddleware.JWTMiddleware, cl *mongo.Client) {
 	// Handle mail send request
 	client = cl
 	r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
-	r.Handle(stuffUserRoute, m.Handler(digestSendHandler)).Methods("POST")
-	r.Handle(stuffUserRoute, m.Handler(digestStatusHandler)).Methods("GET")
-	r.Handle(stuffRoute, m.Handler(digestStatusHandler)).Methods("GET")
+	r.Handle(stuffUserRoute, m.Handler(stuffSendHandler)).Methods("POST")
+	r.Handle(stuffUserRoute, m.Handler(stuffUserHandler)).Methods("GET")
 	r.Handle(stuffUserRoute, m.Handler(digestDeleteHandler)).Methods("DELETE")
+	r.Handle(stuffRoute, m.Handler(stuffAllHandler)).Methods("GET")
 
 	princeton_token, err := _refreshToken()
 	if err != nil {
