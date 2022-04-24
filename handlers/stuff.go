@@ -7,10 +7,12 @@ import (
 	"hoagie-profile/db"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -73,11 +75,19 @@ var getCurrentDigest = func(user string) (PostData, error) {
 	return response, nil
 }
 
-var getAllStuff = func() ([]PostData, error) {
+var getAllStuff = func(limit int64, skip int64, category string) ([]PostData, error) {
 	var responses []PostData
-	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{"created_at", -1}})
 
+	// Setup options for database search
+	findOptions := options.Find()
+	findOptions.SetSort(bson.D{
+		{"created_at", -1}, 
+		{"category", category},
+	})
+	findOptions.SetLimit(limit)
+	findOptions.SetSkip(skip)
+
+	// Perform database search
 	resultCursor, err := db.FindMany(client, "apps", "stuff", bson.D{}, findOptions)
 	if err != nil {
 		return []PostData{}, fmt.Errorf("Error getting stuff from database: %s", err)
@@ -149,7 +159,24 @@ var stuffAllHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	allStuff, err := getAllStuff()
+	vars := mux.Vars(r)
+	limit, limitErr := strconv.ParseInt(vars["limit"], 10, 64)
+	skip, skipErr := strconv.ParseInt(vars["offset"], 10, 64)
+	category := r.URL.Query().Get("category")
+	categoryErr := false
+
+	// Ensure selected category, if present, is valid
+	if !postTypes[category] && len(category) > 0 {
+		categoryErr = true
+	}
+
+	if limitErr != nil || skipErr != nil || categoryErr {
+		http.Error(w, "Error parsing query parameters.", http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve relevant data
+	allStuff, err := getAllStuff(limit, skip, category)
 	if err != nil {
 		http.Error(w, "You do not have access to stuff.", http.StatusBadRequest)
 		return
@@ -187,6 +214,7 @@ var stuffSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Requ
 		deleteVisitor(user.Email)
 		return
 	}
+
 	// Validation here
 	// Ensure type of post is valid
 	if !postTypes[postReq.Category] {

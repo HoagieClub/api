@@ -26,7 +26,7 @@ func Setup(r *mux.Router, m *jwtmiddleware.JWTMiddleware, cl *mongo.Client) {
 	r.Handle(stuffUserRoute, m.Handler(stuffSendHandler)).Methods("POST")
 	r.Handle(stuffUserRoute, m.Handler(stuffUserHandler)).Methods("GET")
 	r.Handle(stuffUserRoute, m.Handler(digestDeleteHandler)).Methods("DELETE")
-	r.Handle(stuffRoute, m.Handler(stuffAllHandler)).Methods("GET")
+	r.Handle(stuffRoute, m.Handler(stuffAllHandler)).Queries("limit", "15", "offset", "{offset:[0-9]+}").Methods("GET")
 
 	princeton_token, err := _refreshToken()
 	if err != nil {
