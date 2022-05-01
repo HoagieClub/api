@@ -70,6 +70,7 @@ var tagTypes = map[string]bool{
 	"furniture":   true,
 	"school":      true,
 	"tickets":     true,
+	"other":       true,
 }
 
 var setupStuffIndex = func() error {
