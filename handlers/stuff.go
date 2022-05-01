@@ -12,47 +12,54 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/gorilla/mux"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type UserData struct {
-	Email string
-	Name  string
-	Phone string
+	Email string `json:"email"`
+	Name  string `json:"name"`
+	Phone string `json:"phone"`
 }
 
 type PostData struct {
-	Id          string
-	Title       string
-	Description string
+	Id          string `json:"id"`
+	Title       string `json:"title"`
+	Email       string `json:"email"`
+	Description string `json:"description"`
 	// Category of the post
-	Category string
+	Category string `json:"category"`
 	// Imgur URL to the image
-	Thumbnail string
+	Thumbnail string `json:"thumbnail"`
 	// Link to the post
-	Link string
+	Link string `json:"link"`
 	// Tags of the post
-	Tags   []string
-	User   UserData
-	Status string
+	Tags   []string `json:"tags"`
+	User   UserData `json:"user"`
+	Status string   `json:"status"`
+	// Sent with Digest or not
+	Sent bool                   `json:"sent"`
+	Info map[string]interface{} `json:"info"`
+	// TO BE REMOVED: KEPT FOR REVERSE-COMPATIBILITY WITH OLD VERSION
+	Name string `json:"name"`
 }
 
 // All valid post categories
 var postTypes = map[string]bool{
-	"sale":     true,
-	"selling":  true,
-	"lost":     true,
-	"bulletin": true,
+	"sale":        true,
+	"selling":     true,
+	"lost":        true,
+	"bulletin":    true,
+	"marketplace": true,
 }
 
 // All valid types
 var tagTypes = map[string]bool{
 	// Bulletin
-	"announcement":  true,
-	"help":          true,
-	"opportunities": true,
+	"announcement": true,
+	"request":      true,
+	"opportunity":  true,
 	// Lost & Found
 	"lost":  true,
 	"found": true,
@@ -63,6 +70,25 @@ var tagTypes = map[string]bool{
 	"furniture":   true,
 	"school":      true,
 	"tickets":     true,
+}
+
+var setupStuffIndex = func() error {
+	stuff := client.Database("apps").Collection("stuff")
+
+	model := mongo.IndexModel{
+		Keys:    bson.M{"createdAt": 1},
+		Options: options.Index().SetExpireAfterSeconds(int32(EXPIRATION_DURATION)),
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
+	defer cancel()
+	stuff.Indexes().DropAll(ctx)
+	_, err := stuff.Indexes().CreateOne(ctx, model)
+	if err != nil {
+		// TODO: handle this better, errors are not necessarily bad
+		// index usually exists so this is necessary only once.
+		return err
+	}
+	return nil
 }
 
 var getCurrentDigest = func(user string) (PostData, error) {
@@ -81,14 +107,22 @@ var getAllStuff = func(limit int64, skip int64, category string) ([]PostData, er
 	// Setup options for database search
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{
-		{"created_at", -1}, 
-		{"category", category},
+		{"createdAt", -1},
+		// {"category", category},
 	})
 	findOptions.SetLimit(limit)
 	findOptions.SetSkip(skip)
 
+	query := bson.D{}
+	if category != "" {
+		if category == "marketplace" {
+			query = bson.D{{"category", bson.D{{"$in", []string{"sale", "selling"}}}}}
+		} else {
+			query = bson.D{{"category", category}}
+		}
+	}
 	// Perform database search
-	resultCursor, err := db.FindMany(client, "apps", "stuff", bson.D{}, findOptions)
+	resultCursor, err := db.FindMany(client, "apps", "stuff", query, findOptions)
 	if err != nil {
 		return []PostData{}, fmt.Errorf("Error getting stuff from database: %s", err)
 	}
@@ -126,7 +160,7 @@ var stuffUserHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	currentDigest, err := getCurrentDigest(user.Email)
 	if err != nil {
-		result, _ := json.Marshal(map[string]string{"Status": "unused"})
+		result, _ := json.Marshal(map[string]string{"status": "unused"})
 		w.Write(result)
 		return
 	}
@@ -159,9 +193,15 @@ var stuffAllHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
-	limit, limitErr := strconv.ParseInt(vars["limit"], 10, 64)
-	skip, skipErr := strconv.ParseInt(vars["offset"], 10, 64)
+	// vars := mux.Vars(r)
+	// fmt.Println(vars)
+	// limit, limitErr := strconv.ParseInt(vars["limit"], 10, 64)
+	// println(limit, limitErr)
+	// skip, skipErr := strconv.ParseInt(vars["offset"], 10, 64)
+	// println(skip, skipErr)
+	limit, limitErr := strconv.ParseInt(r.URL.Query().Get("limit"), 10, 64)
+	skip, skipErr := strconv.ParseInt(r.URL.Query().Get("offset"), 10, 64)
+
 	category := r.URL.Query().Get("category")
 	categoryErr := false
 
@@ -178,7 +218,7 @@ var stuffAllHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reque
 	// Retrieve relevant data
 	allStuff, err := getAllStuff(limit, skip, category)
 	if err != nil {
-		http.Error(w, "You do not have access to stuff.", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -208,6 +248,7 @@ var stuffSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Requ
 
 	postReq.User.Name = user.Name
 	postReq.User.Email = user.Email
+	postReq.Sent = false
 
 	if err != nil {
 		http.Error(w, "Message did not contain correct fields.", http.StatusBadRequest)
@@ -289,7 +330,8 @@ var stuffSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Requ
 		{"category", postReq.Category},
 		{"link", postReq.Link},
 		{"tags", postReq.Tags},
-		{"created_at", time.Now()},
+		{"sent", postReq.Sent},
+		{"createdAt", time.Now()},
 	})
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{\"Status\": \"OK\"}"))

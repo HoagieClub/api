@@ -15,6 +15,7 @@ require (
 	github.com/microcosm-cc/bluemonday v1.0.15
 	github.com/rs/cors v1.8.0
 	go.mongodb.org/mongo-driver v1.8.1
+	golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gopkg.in/auth0.v5 v5.19.2 // indirect
 	gopkg.in/cas.v2 v2.2.2
