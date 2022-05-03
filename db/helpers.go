@@ -63,6 +63,25 @@ func FindMany(
 	return result, nil
 }
 
+// Update many documents in a collection
+func UpdateMany(
+	client *mongo.Client,
+	databaseName string,
+	collectionName string,
+	filter bson.D,
+	update bson.D,
+	options *options.UpdateOptions,
+) (*mongo.UpdateResult, error) {
+	coll := client.Database(databaseName).Collection(collectionName)
+	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
+	defer cancel()
+	result, err := coll.UpdateMany(ctx, filter, update, options)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 // Insert one new document into a collection
 func InsertOne(
 	client *mongo.Client,

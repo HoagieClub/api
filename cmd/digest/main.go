@@ -17,7 +17,12 @@ import (
 
 var REQUEST_TIMEOUT = 10 * time.Second
 var sandwich = `<img height="22" src='https://i.imgur.com/gkEZQ4x.png' title='Hoagie' />`
-var logo = `<img height="68" src='https://i.imgur.com/bu1KWlQ.png' alt='Hoagie Digest' />`
+var logo = `<img height="180px" src='https://i.imgur.com/kidY9cT.png' alt='Hoagie Digest' />`
+
+type UserInfo struct {
+	Name  string
+	Email string
+}
 
 type DigestObject struct {
 	Title       string
@@ -27,6 +32,8 @@ type DigestObject struct {
 	Link        string
 	Name        string
 	Email       string
+	Tags        []string
+	User        UserInfo
 }
 
 func link(text string, link string) string {
@@ -37,27 +44,50 @@ func link_mail(text string) string {
 	return link(text, "mailto:"+text)
 }
 
+func formatTag(text string) string {
+	return fmt.Sprintf(`<span style="color: #474d66; background-color:#edeff5; padding: 0px 6px; border-radius:4px; margin-right: 1px;">%s</span>`, strings.Title(text))
+}
+
+func addTags(email *strings.Builder, tags []string) {
+	email.WriteString("<div style='margin-top: 6px;'>")
+	for _, tag := range tags {
+		email.WriteString(formatTag(tag) + " ")
+	}
+	email.WriteString("</div>")
+}
+
 func formatMessage(message DigestObject) string {
 	var email strings.Builder
+	name := message.User.Name
+	if name == "" {
+		// TODO: Old version, remove
+		name = message.Name
+	}
 	switch message.Category {
 	case "sale":
+		tags := message.Tags
+		if tags == nil || len(tags) == 0 {
+			tags = strings.Split(message.Title, ", ")
+		}
+		// TODO: Old version, remove
 		if len(message.Link) > 0 {
 			email.WriteString("<span><a target='_blank' href=\"" + message.Link + "\">Open Sale Slides</a></span><br />")
 		}
-		email.WriteString(fmt.Sprintf("<span><b>Contact: </b>%s (%s)</span><br />", message.Name, link_mail(message.Email)))
-		email.WriteString(fmt.Sprintf("<span><b>Categories: </b>%s</span><br />", message.Title))
-		email.WriteString(fmt.Sprintf("<span><b>Description: </b>%s</span><br />", message.Description))
+		email.WriteString(fmt.Sprintf("<div style='margin:10px 0px;'>%s</div>", message.Description))
+		email.WriteString(fmt.Sprintf("<span><b>Contact: </b>%s (%s)</span><br />", name, link_mail(message.Email)))
+		addTags(&email, tags)
 	case "lost":
 		if len(message.Link) > 0 {
 			email.WriteString("<span><a target='_blank' href=\"" + message.Link + "\">See Picture</a></span><br />")
 		}
-		email.WriteString(fmt.Sprintf("<span><b>Contact: </b>%s (%s)</span><br />", message.Name, link_mail(message.Email)))
-		email.WriteString("<span><b>Title: </b>" + message.Title + "</span><br />")
-		email.WriteString("<span><b>Description: </b>" + message.Description + "</span><br />")
+		email.WriteString("<span><b>" + strings.ToUpper(message.Tags[0]) + ": </b>" + message.Title + "</span><br />")
+		email.WriteString("<div style='margin:5px 0px;'>" + message.Description + "</div>")
+		email.WriteString(fmt.Sprintf("<span><b>Contact: </b>%s (%s)</span><br />", name, link_mail(message.Email)))
 	default:
-		email.WriteString(fmt.Sprintf("<span><b>From: </b>%s (%s)</span><br />", message.Name, message.Email))
-		email.WriteString("<span><b>Title: </b>" + message.Title + "</span><br />")
-		email.WriteString("<span><b>Message: </b>" + message.Description + "</span><br />")
+		email.WriteString("<span><b>" + message.Title + "</b></span><br />")
+		email.WriteString("<div style='margin:5px 0px;'>" + message.Description + "</div>")
+		email.WriteString(fmt.Sprintf("<span><b>From: </b>%s (%s)</span><br />", name, link_mail(message.Email)))
+		addTags(&email, message.Tags)
 	}
 
 	return email.String()
@@ -67,6 +97,7 @@ func main() {
 	weekday := time.Now().Weekday()
 	allowedDates := []time.Weekday{
 		time.Tuesday, time.Thursday, time.Saturday,
+		time.Monday,
 	}
 	for _, allowedDate := range allowedDates {
 		if weekday == allowedDate {
@@ -88,7 +119,7 @@ func runDigestScript() {
 	ctx := context.Background()
 	defer client.Disconnect(ctx)
 
-	cursor, err := db.FindMany(client, "apps", "mail", bson.D{}, options.Find())
+	cursor, err := db.FindMany(client, "apps", "stuff", bson.D{{"sent", false}}, options.Find())
 	if err != nil {
 		panic("Error getting digest emails" + err.Error())
 	}
@@ -116,16 +147,18 @@ func runDigestScript() {
 	font-family: sans-serif;
 	">`)
 	email.WriteString(fmt.Sprintf("<center>%s</center>", logo))
-	email.WriteString(`<p><br />Here is a weekly digest of student messages, 
-	from Sales to Lost & Found and more, sent every Tuesday, Thursday, and Saturday, powered by <b>hoagiemail</b></p>`)
+	email.WriteString(`<p><br />Here is a weekly digest of posts made to <a href="https://stuff.hoagie.io/">Hoagie Stuff</a>, 
+	from Sales to Lost & Found and more, sent every Tuesday, Thursday, and Saturday.</p>`)
 	email.WriteString(`<p>
-	<a target="_blank" href="https://mail.hoagie.io">Add your message to next digest</a> | 
+	<a target="_blank" href="https://stuff.hoagie.io/">Open Hoagie Stuff</a> |
+	<a target="_blank" href="https://stuff.hoagie.io/create">Add your message to next digest</a> | 
 	<a target="_blank" href="https://tally.so/r/mYJjN3">Give feedback</a>
 	</p>`)
 
 	email.WriteString("<hr />")
 	if len(digest["lost"]) > 0 {
 		email.WriteString("<h2>🧭 Lost & Found</h2>")
+		email.WriteString(`<div style="margin-bottom:20px; margin-top:-10px;">Access anytime through <a href="https://stuff.hoagie.io/lostfound">stuff.hoagie.io/lostfound</a></div>`)
 		for i, message := range digest["lost"] {
 			email.WriteString(formatMessage(message))
 			if i == len(digest["lost"])-1 {
@@ -135,7 +168,8 @@ func runDigestScript() {
 		}
 	}
 	if len(digest["sale"]) > 0 {
-		email.WriteString("<h2>🛍️ Student Sales</h2>")
+		email.WriteString("<h2>🛍️ Marketplace</h2>")
+		email.WriteString(`<div style="margin-bottom:20px; margin-top:-10px;">Accessible anytime with <a href="https://stuff.hoagie.io/marketplace">stuff.hoagie.io/marketplace</a></div>`)
 		for i, message := range digest["sale"] {
 			email.WriteString(formatMessage(message))
 			if i == len(digest["sale"])-1 {
@@ -144,17 +178,21 @@ func runDigestScript() {
 			email.WriteString("<hr />")
 		}
 	}
-	if len(digest["misc"]) > 0 {
-		email.WriteString("<h2>✉️ Other</h2>")
-		for i, message := range digest["misc"] {
+	if len(digest["bulletin"]) > 0 {
+		email.WriteString("<h2>✉️ Bulletins</h2>")
+		email.WriteString(`<div style="margin-bottom:20px; margin-top:-10px;">Accessible anytime with <a href="https://stuff.hoagie.io/bulletins">stuff.hoagie.io/bulletins</a></div>`)
+		for i, message := range digest["bulletin"] {
 			email.WriteString(formatMessage(message))
-			if i == len(digest["misc"])-1 {
+			if i == len(digest["bulletin"])-1 {
 				email.WriteString("<br />")
 			}
 			email.WriteString("<hr />")
 		}
 	}
-	email.WriteString(fmt.Sprintf(`<p>That's all! This could have been %d emails in your inbox but instead it is just one!</p>
+	email.WriteString(fmt.Sprintf(`<p>That's all! This could have been %d emails in your inbox but instead it is just one!<br /><br />
+	You don't need to wait for the next digest to see what's new, check out the <a target="_blank" href="https://stuff.hoagie.io/">Hoagie Stuff</a>
+	to keep up to date with the latest posts before others.
+	</p>
 	`, total))
 	email.WriteString(fmt.Sprintf(`
 		<center>
@@ -170,14 +208,15 @@ func runDigestScript() {
 	if os.Getenv("HOAGIE_MODE") == "production" {
 		makeRequest(MailRequest{
 			Header: fmt.Sprintf(
-				"📬 DIGEST %s: Lost & found, sales, and more!",
+				"📬 DIGEST %s: Sales, Lost & Found, and more!",
 				time.Now().Format("1/2")),
 			Sender: "Hoagie Mail",
 			Body:   email.String(),
 			Email:  "hoagie@princeton.edu",
 		})
 		fmt.Println("Successfully sent via Hoagie Mail.")
-		db.Drop(client, "apps", "mail")
+		db.UpdateMany(client, "apps", "stuff", bson.D{{"sent", false}}, bson.D{{"$set", bson.D{{"sent", true}}}}, options.Update())
+
 	}
 }
 
@@ -227,15 +266,15 @@ func makeRequest(req MailRequest) error {
 					Email: "FIRSTCOMEFIRSTSERV@PRINCETON.EDU",
 					Name:  "First",
 				},
-				// mailjet.RecipientV31{
-				// 	Email: "matheymail@PRINCETON.EDU",
-				// 	Name:  "Mathey",
-				// },
+				mailjet.RecipientV31{
+					Email: "matheymail@PRINCETON.EDU",
+					Name:  "Mathey",
+				},
 			},
 			Subject:  req.Header,
 			TextPart: req.Body,
 			HTMLPart: req.Body,
-			CustomID: "HoagieMail",
+			CustomID: "HoagieStuffDigest",
 		},
 	}
 	messages := mailjet.MessagesV31{Info: messagesInfo}
