@@ -30,6 +30,7 @@ type DigestObject struct {
 	Contact     string
 	Description string
 	Link        string
+	Thumbnail   string
 	Name        string
 	Email       string
 	Tags        []string
@@ -77,8 +78,8 @@ func formatMessage(message DigestObject) string {
 		email.WriteString(fmt.Sprintf("<span><b>Contact: </b>%s (%s)</span><br />", name, link_mail(message.Email)))
 		addTags(&email, tags)
 	case "lost":
-		if len(message.Link) > 0 {
-			email.WriteString("<span><a target='_blank' href=\"" + message.Link + "\">See Picture</a></span><br />")
+		if len(message.Thumbnail) > 0 {
+			email.WriteString("<span><a target='_blank' href=\"" + message.Thumbnail + "\">See Picture</a></span><br />")
 		}
 		email.WriteString("<span><b>" + strings.ToUpper(message.Tags[0]) + ": </b>" + message.Title + "</span><br />")
 		email.WriteString("<div style='margin:5px 0px;'>" + message.Description + "</div>")
@@ -97,7 +98,6 @@ func main() {
 	weekday := time.Now().Weekday()
 	allowedDates := []time.Weekday{
 		time.Tuesday, time.Thursday, time.Saturday,
-		time.Monday,
 	}
 	for _, allowedDate := range allowedDates {
 		if weekday == allowedDate {
