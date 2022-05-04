@@ -95,18 +95,7 @@ func formatMessage(message DigestObject) string {
 }
 
 func main() {
-	weekday := time.Now().Weekday()
-	allowedDates := []time.Weekday{
-		time.Tuesday, time.Thursday, time.Saturday,
-	}
-	for _, allowedDate := range allowedDates {
-		if weekday == allowedDate {
-			fmt.Println("Today is a Digest Day... Running...")
-			runDigestScript()
-			return
-		}
-	}
-	fmt.Println("Not a Digest Day... Quitting...")
+	runDigestScript()
 }
 
 func runDigestScript() {
@@ -140,6 +129,27 @@ func runDigestScript() {
 	if total < 1 {
 		fmt.Println("No messages found...")
 		return
+	} else if total < 5 {
+		// If there are less than 5 posts,
+		// only send the Digest if it is a digest day!
+		weekday := time.Now().Weekday()
+		allowedDates := []time.Weekday{
+			time.Tuesday, time.Thursday, time.Saturday,
+		}
+		isDigestDay := false
+		for _, allowedDate := range allowedDates {
+			if weekday == allowedDate {
+				fmt.Println("Today is a Digest Day... Running...")
+				isDigestDay = true
+				break
+			}
+		}
+		if !isDigestDay {
+			fmt.Println("Not a Digest Day... Exiting...")
+			return
+		}
+	} else {
+		fmt.Println("5 or more Digest posts... Running...")
 	}
 
 	var email strings.Builder
