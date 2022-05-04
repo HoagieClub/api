@@ -347,7 +347,7 @@ var digestDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.R
 	}
 
 	current, _ := getCurrentDigest(user.Email)
-	if current.Title == "" {
+	if current.Category == "" {
 		http.Error(w, "You do not have an existing digest message. Please create one first.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
 		return
