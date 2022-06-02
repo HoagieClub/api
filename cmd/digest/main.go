@@ -16,6 +16,7 @@ import (
 )
 
 var REQUEST_TIMEOUT = 10 * time.Second
+var SUMMER = true
 var sandwich = `<img height="22" src='https://i.imgur.com/gkEZQ4x.png' title='Hoagie' />`
 var logo = `<img height="180px" src='https://i.imgur.com/kidY9cT.png' alt='Hoagie Digest' />`
 
@@ -131,17 +132,19 @@ func runDigestScript() {
 		return
 	} else if total < 5 {
 		// If there are less than 5 posts,
-		// only send the Digest if it is a digest day!
+		// only send the Digest if it is a digest day and not summer!
 		weekday := time.Now().Weekday()
 		allowedDates := []time.Weekday{
 			time.Tuesday, time.Thursday, time.Saturday,
 		}
 		isDigestDay := false
-		for _, allowedDate := range allowedDates {
-			if weekday == allowedDate {
-				fmt.Println("Today is a Digest Day... Running...")
-				isDigestDay = true
-				break
+		if !SUMMER {
+			for _, allowedDate := range allowedDates {
+				if weekday == allowedDate {
+					fmt.Println("Today is a Digest Day... Running...")
+					isDigestDay = true
+					break
+				}
 			}
 		}
 		if !isDigestDay {
@@ -157,8 +160,12 @@ func runDigestScript() {
 	font-family: sans-serif;
 	">`)
 	email.WriteString(fmt.Sprintf("<center>%s</center>", logo))
-	email.WriteString(`<p><br />Here is a weekly digest of posts made to <a href="https://stuff.hoagie.io/">Hoagie Stuff</a>, 
+	if !SUMMER {
+		email.WriteString(`<p><br />Here is a weekly digest of posts made to <a href="https://stuff.hoagie.io/">Hoagie Stuff</a>, 
 	from Sales to Lost & Found and more, sent every Tuesday, Thursday, and Saturday.</p>`)
+	} else {
+		email.WriteString(`<p><br />Here is a digest of posts made to <a href="https://stuff.hoagie.io/">Hoagie Stuff</a></p> over past few days. It's Summer, so Hoagie is taking things slow.</p>`)
+	}
 	email.WriteString(`<p>
 	<a target="_blank" href="https://stuff.hoagie.io/">Open Hoagie Stuff</a> |
 	<a target="_blank" href="https://stuff.hoagie.io/create">Add your message to next digest</a> | 
