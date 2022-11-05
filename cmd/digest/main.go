@@ -287,6 +287,10 @@ func makeRequest(req MailRequest) error {
 					Email: "matheymail@PRINCETON.EDU",
 					Name:  "Mathey",
 				},
+				mailjet.RecipientV31{
+					Email: "yehyellowpages@princeton.edu",
+					Name:  "Yeh",
+				},
 			},
 			Subject:  req.Header,
 			TextPart: req.Body,
