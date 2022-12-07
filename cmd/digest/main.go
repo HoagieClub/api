@@ -16,7 +16,7 @@ import (
 )
 
 var REQUEST_TIMEOUT = 10 * time.Second
-var SUMMER = true
+var SUMMER = false
 var sandwich = `<img height="22" src='https://i.imgur.com/gkEZQ4x.png' title='Hoagie' />`
 var logo = `<img height="180px" src='https://i.imgur.com/kidY9cT.png' alt='Hoagie Digest' />`
 
@@ -286,6 +286,10 @@ func makeRequest(req MailRequest) error {
 				mailjet.RecipientV31{
 					Email: "matheymail@PRINCETON.EDU",
 					Name:  "Mathey",
+				},
+				mailjet.RecipientV31{
+					Email: "yehyellowpages@princeton.edu",
+					Name:  "Yeh",
 				},
 			},
 			Subject:  req.Header,
