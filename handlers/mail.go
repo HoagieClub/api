@@ -58,8 +58,8 @@ func makeRequest(req MailRequest) error {
 					Name:  "Forbes",
 				},
 				mailjet.RecipientV31{
-					Email: "FIRSTCOMEFIRSTSERV@PRINCETON.EDU",
-					Name:  "First",
+					Email: "westwire@princeton.edu",
+					Name:  "NCW",
 				},
 				mailjet.RecipientV31{
 					Email: "matheymail@PRINCETON.EDU",
