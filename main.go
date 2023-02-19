@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Response struct {
@@ -19,29 +20,55 @@ type Response struct {
 
 func main() {
 	godotenv.Load(".env.local")
-	domain := os.Getenv("AUTH0_DOMAIN")
-	audience := os.Getenv("AUTH0_AUDIENCE")
-	hostname := os.Getenv("HOAGIE_HOST")
-	port := os.Getenv("PORT")
 	runtimeMode := os.Getenv("HOAGIE_MODE")
 
-	r := mux.NewRouter()
-	r.Host(hostname).Subrouter()
+	var server *http.Server
+	var client *mongo.Client
+	var hostname string = "localhost"
+	var port string = "8080"
 
-	jwtMiddleware := auth.Middleware(domain, audience)
+	if runtimeMode == "debug" {
+		// Local development
+		var err error
 
-	client, err := db.MongoClient()
-	if err != nil {
-		log.Fatal("Database connection error" + err.Error())
-	}
+		r := mux.NewRouter()
+		r.Host("localhost").Subrouter()
+		os.Setenv("MONGO_URI", "mongodb://localhost:27017")
+		client, err = db.MongoClient()
+		if err != nil {
+			log.Fatal("Database connection error" + err.Error())
+		}
 
-	handlers.Setup(r, jwtMiddleware, client)
+		handlers.Setup(r, client, nil)
 
-	corsWrapper := auth.CorsWrapper(runtimeMode)
+		server = &http.Server{
+			Addr:    ":" + port,
+			Handler: r,
+		}
+	} else {
+		domain := os.Getenv("AUTH0_DOMAIN")
+		audience := os.Getenv("AUTH0_AUDIENCE")
+		hostname = os.Getenv("HOAGIE_HOST")
+		port = os.Getenv("PORT")
 
-	server := &http.Server{
-		Addr:    ":" + port,
-		Handler: corsWrapper.Handler(r),
+		r := mux.NewRouter()
+		r.Host(hostname).Subrouter()
+
+		jwtMiddleware := auth.Middleware(domain, audience)
+
+		client, err := db.MongoClient()
+		if err != nil {
+			log.Fatal("Database connection error" + err.Error())
+		}
+
+		handlers.Setup(r, client, jwtMiddleware)
+
+		corsWrapper := auth.CorsWrapper(runtimeMode)
+
+		server = &http.Server{
+			Addr:    ":" + port,
+			Handler: corsWrapper.Handler(r),
+		}
 	}
 
 	fmt.Println(`
@@ -51,10 +78,11 @@ func main() {
 	if runtimeMode == "debug" {
 		fmt.Println("[i] Debug mode is on.")
 		var user map[string]interface{}
-		err := db.FindUser(client, "test@princeton.edu", &user)
-		if err != nil {
-			fmt.Println("[i] Test user not found in debug mode...")
-			panic("Please configure the database.")
+		if db.FindUser(client, "meatball@princeton.edu", &user) != nil {
+			err := db.SetupInitialDatabase(client)
+			if err != nil {
+				panic("Failed to create initial database. Make sure you have a clean MongoDB instance running.")
+			}
 		}
 	}
 	fmt.Printf("[i] Running on https://%s:%s\n", hostname, port)

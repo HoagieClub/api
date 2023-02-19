@@ -339,7 +339,7 @@ var stuffSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Requ
 })
 
 // DELETE /stuff/user
-var digestDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var stuffDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	user, success := getUser(r.Header.Get("authorization"))
 	if !success {
 		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
