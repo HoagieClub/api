@@ -17,3 +17,6 @@ vendor/
 .env
 .env.local
 .env.*
+
+# Ignore the sample env file
+!.env.local.txt
