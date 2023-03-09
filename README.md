@@ -20,7 +20,7 @@ go get
 ```
 go run main.go
 ```
-That's it! The server can now be accessed with `http://localhost:8080`.
+That's it! The server can now be accessed with `http://localhost:8080`. If there are any issues, you can try running `go run main.go reset` to reset the test database.
 
 ## Branches
 Create a new branch that describes your task, for example:
