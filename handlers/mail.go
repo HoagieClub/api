@@ -3,13 +3,17 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"hoagie-profile/db"
 	"hoagie-profile/auth"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
 	"github.com/microcosm-cc/bluemonday"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type MailRequest struct {
@@ -17,6 +21,7 @@ type MailRequest struct {
 	Sender string
 	Body   string
 	Email  string
+	Schedule string
 }
 
 // BlueMonday sanitizes HTML, preventing unsafe user input
@@ -110,15 +115,17 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
 		return
 	}
-
-	if userReachedLimit(user.Email) {
-		http.Error(w, `
-			You have reached your send limit. 
-			You can only send one email every 6 hours. 
-			If you need to send an email urgently, 
-			please contact hoagie@princeton.edu`,
-			http.StatusTooManyRequests)
-		return
+	// Ignore user limits when debugging
+	if os.Getenv("HOAGIE_MODE") != "debug" {
+		if userReachedLimit(user.Email) {
+			http.Error(w, `
+				You have reached your send limit. 
+				You can only send one email every 6 hours. 
+				If you need to send an email urgently, 
+				please contact hoagie@princeton.edu`,
+				http.StatusTooManyRequests)
+			return
+		}
 	}
 
 	if len(user.Name) == 0 {
@@ -143,6 +150,60 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	// mailReq.Body = p.Sanitize(mailReq.Body)
 	mailReq.Email = user.Email
+
+	// Scheduled send
+	if mailReq.Schedule != "now" {
+		// Validate that schedule is valid
+		if !scheduleValid(mailReq.Schedule) {
+			deleteVisitor(user.Email)
+			http.Error(
+				w, 
+				"Your email could not be scheduled at the specified time. Please refresh the page and select a later time.",
+				http.StatusBadRequest,
+			)
+			return
+		}
+		// Convert time to EST and check for errors
+		est, err := time.LoadLocation("America/New_York")
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+			deleteVisitor(user.Email)
+			return
+		}
+		scheduleEST, err := time.ParseInLocation(time.RFC3339, mailReq.Schedule, est)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+			deleteVisitor(user.Email)
+			return
+		}
+
+		// Check that user doesn't have an already-existing entry
+		currentScheduledMail, err := getScheduled(user, scheduleEST)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+			deleteVisitor(user.Email)
+			return
+		}
+		if currentScheduledMail != (ScheduledMail{}) {
+			errString := "You already have an email scheduled for this time. If you would like to change"
+			errString += " your message, please delete your mail in the Scheduled Emails page and try again."
+			http.Error(w, errString, http.StatusBadRequest)
+			deleteVisitor(user.Email)
+			return
+		}
+
+		// Add to MongoDB
+		db.InsertOne(client, "apps", "mail", bson.D{
+			{Key: "Email", Value: mailReq.Email},
+			{Key: "Sender", Value: mailReq.Sender},
+			{Key: "Header", Value: mailReq.Header},
+			{Key: "Body", Value: mailReq.Body},
+			{Key: "Schedule", Value: scheduleEST},
+			{Key: "UserName", Value: user.Name},
+			{Key: "CreatedAt", Value: time.Now()},
+		})
+	}
+
 	mailReq.Body += fmt.Sprintf(`
 	<hr />
 	<div style="font-size:8pt;">This email was instantly sent to all
@@ -153,21 +214,27 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	`, user.Name, mailReq.Email)
 
 	if os.Getenv("HOAGIE_MODE") == "debug" {
-		println(mailReq.Email)
-		println(mailReq.Header)
-		println(mailReq.Body)
+		println("Email: " + mailReq.Email)
+		println("Sender: " + mailReq.Sender)
+		println("Header: " + mailReq.Header)
+		println("Body: " + mailReq.Body)
+		println("Schedule: " + mailReq.Schedule)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte("{\"Status\": \"OK\"}"))
 		return
 	}
-	err = sendMail(mailReq)
+	
+	// Normal send
+	if mailReq.Schedule == "now" {
+		err = sendMail(mailReq)
 
-	fmt.Printf("MAIL: %s sent an email with title '%s'.", mailReq.Email, mailReq.Header)
+		fmt.Printf("MAIL: %s sent an email with title '%s'.", mailReq.Email, mailReq.Header)
 
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
-		deleteVisitor(user.Email)
-		return
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+			deleteVisitor(user.Email)
+			return
+		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{\"Status\": \"OK\"}"))
