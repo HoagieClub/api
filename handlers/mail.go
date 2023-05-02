@@ -11,7 +11,7 @@ import (
 	"time"
 
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
-	"github.com/microcosm-cc/bluemonday"
+	// "github.com/microcosm-cc/bluemonday"
 
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -25,7 +25,7 @@ type MailRequest struct {
 }
 
 // BlueMonday sanitizes HTML, preventing unsafe user input
-var p = bluemonday.UGCPolicy()
+// var p = bluemonday.UGCPolicy()
 
 func makeRequest(req MailRequest) error {
 	mailjetClient := mailjet.NewMailjetClient(os.Getenv("MAILJET_PUBLIC_KEY"), os.Getenv("MAILJET_PRIVATE_KEY"))
@@ -130,6 +130,8 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	if len(user.Name) == 0 {
 		http.Error(w, `Hoagie Mail has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
+		deleteVisitor(user.Email)
+		return
 	}
 
 	var mailReq MailRequest
