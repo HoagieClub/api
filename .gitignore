@@ -20,3 +20,6 @@ vendor/
 
 # Ignore the sample env file
 !.env.local.txt
+
+# misc
+.editorconfig
