@@ -106,23 +106,6 @@ func userReachedLimit(user string) bool {
 	return !userLimit.Allow()
 }
 
-// Returns true if the date/time schedule is at least a minute
-// after the current time, else false
-func scheduleValid(schedule string) bool {
-	est, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		fmt.Println("Could not load EST location", err)
-		return false
-	}
-	scheduleTime, err := time.ParseInLocation(time.RFC3339, schedule, est)
-	if err != nil {
-		fmt.Println("Schedule string is not valid", err)
-		return false
-	}
-	currentTime := time.Now().In(est).Add(time.Minute)
-	return scheduleTime.After(currentTime)
-}
-
 // POST /mail/send
 var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	accessToken := strings.TrimPrefix(r.Header.Get("authorization"), "Bearer ")
@@ -193,6 +176,20 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 			deleteVisitor(user.Email)
 			return
 		}
+
+		// Check that user doesn't have an already-existing entry
+		currentScheduledMail, err := getScheduled(user, scheduleEST)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+			deleteVisitor(user.Email)
+			return
+		}
+		if currentScheduledMail != (ScheduledMail{}) {
+			errString := "You already have an email scheduled for this time. If you would like to change"
+			errString += " your message, please delete your mail in the Scheduled Emails page and try again."
+			http.Error(w, errString, http.StatusBadRequest)
+		}
+
 		// Add to MongoDB
 		db.InsertOne(client, "apps", "mail", bson.D{
 			{"Email", mailReq.Email},
