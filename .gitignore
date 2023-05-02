@@ -21,8 +21,5 @@ vendor/
 # Ignore the sample env file
 !.env.local.txt
 
-# Ignore local hoagie-profile
-hoagie-profile
-
 # misc
 .editorconfig
