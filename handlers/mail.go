@@ -188,17 +188,19 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 			errString := "You already have an email scheduled for this time. If you would like to change"
 			errString += " your message, please delete your mail in the Scheduled Emails page and try again."
 			http.Error(w, errString, http.StatusBadRequest)
+			deleteVisitor(user.Email)
+			return
 		}
 
 		// Add to MongoDB
 		db.InsertOne(client, "apps", "mail", bson.D{
-			{"Email", mailReq.Email},
-			{"Sender", mailReq.Sender},
-			{"Header", mailReq.Header},
-			{"Body", mailReq.Body},
-			{"Schedule", scheduleEST},
-			{"UserName", user.Name},
-			{"CreatedAt", time.Now()},
+			{Key: "Email", Value: mailReq.Email},
+			{Key: "Sender", Value: mailReq.Sender},
+			{Key: "Header", Value: mailReq.Header},
+			{Key: "Body", Value: mailReq.Body},
+			{Key: "Schedule", Value: scheduleEST},
+			{Key: "UserName", Value: user.Name},
+			{Key: "CreatedAt", Value: time.Now()},
 		})
 	}
 
