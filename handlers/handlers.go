@@ -17,6 +17,7 @@ var client *mongo.Client
 const (
 	mailRoute      = "/mail"
 	mailSendRoute  = "/mail/send"
+	mailScheduledRoute = "mail/scheduled"
 	stuffRoute     = "/stuff"
 	stuffUserRoute = "/stuff/user"
 )
@@ -31,6 +32,9 @@ func Setup(r *mux.Router, cl *mongo.Client, m *jwtmiddleware.JWTMiddleware) {
 		r.Handle(stuffUserRoute, stuffUserHandler).Methods("GET")
 		r.Handle(stuffUserRoute, stuffDeleteHandler).Methods("DELETE")
 		r.Handle(stuffRoute, stuffAllHandler).Methods("GET")
+		r.Handle(mailScheduledRoute, scheduledSendHandler).Methods("POST")
+		r.Handle(mailScheduledRoute, scheduledUserHandler).Methods("GET")
+		r.Handle(mailScheduledRoute, scheduledDeleteHandler).Methods("DELETE")
 		return
 	} else {
 		r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
@@ -38,6 +42,9 @@ func Setup(r *mux.Router, cl *mongo.Client, m *jwtmiddleware.JWTMiddleware) {
 		r.Handle(stuffUserRoute, m.Handler(stuffUserHandler)).Methods("GET")
 		r.Handle(stuffUserRoute, m.Handler(stuffDeleteHandler)).Methods("DELETE")
 		r.Handle(stuffRoute, m.Handler(stuffAllHandler)).Methods("GET")
+		r.Handle(mailScheduledRoute, m.Handler(scheduledSendHandler)).Methods("POST")
+		r.Handle(mailScheduledRoute, m.Handler(scheduledUserHandler)).Methods("GET")
+		r.Handle(mailScheduledRoute, m.Handler(scheduledDeleteHandler)).Methods("DELETE")
 	}
 
 	// princeton_token, err := _refreshToken()
