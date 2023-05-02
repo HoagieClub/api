@@ -17,7 +17,7 @@ var client *mongo.Client
 const (
 	mailRoute      = "/mail"
 	mailSendRoute  = "/mail/send"
-	mailScheduledUserRoute = "mail/scheduled/user"
+	mailScheduledUserRoute = "/mail/scheduled/user"
 	stuffRoute     = "/stuff"
 	stuffUserRoute = "/stuff/user"
 )
