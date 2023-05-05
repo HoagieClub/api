@@ -29,7 +29,7 @@ func main() {
 }
 
 // This function queries the MongoDB collection for mail and sends emails
-// with a schedule field that's less than the current time in EST + 30 minutes
+// with a schedule field that's less than the current time in EST + 60 minutes
 func runScheduledSendScript() {
 	godotenv.Load(".env.local")
 
@@ -44,9 +44,9 @@ func runScheduledSendScript() {
 	if err != nil {
 		panic(err)
 	}
-	currentTimeEST := time.Now().In(estLocation).Add(30 * time.Minute)
+	currentTimeEST := time.Now().In(estLocation).Add(60 * time.Minute)
 
-	// Grace period of 30 minutes because Heroku Scheduler isn't exact
+	// Grace period of 60 minutes because Heroku Scheduler isn't exact
 	filter := bson.D{
 		{"Schedule", bson.D{
         	{"$lte", currentTimeEST},
@@ -84,7 +84,7 @@ func runScheduledSendScript() {
 			println("Schedule: " + mailReq.Schedule.String())
 			println("UserName: " + mailReq.UserName)
 			println("CreatedAt: " + mailReq.CreatedAt.String())
-		}
+		} 
 
 		if os.Getenv("HOAGIE_MODE") == "production" {
 			err = makeRequest(mailReq)
