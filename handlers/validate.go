@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"time"
 )
 
 func notBetween(w http.ResponseWriter, input string, inputName string, minChar int, maxChar int) bool {
@@ -17,4 +18,21 @@ func notBetween(w http.ResponseWriter, input string, inputName string, minChar i
 		return true
 	}
 	return false
+}
+
+// Returns true if the date/time schedule is at least a minute
+// after the current time, else false
+func scheduleValid(schedule string) bool {
+	est, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		fmt.Println("Could not load EST location", err)
+		return false
+	}
+	scheduleTime, err := time.ParseInLocation(time.RFC3339, schedule, est)
+	if err != nil {
+		fmt.Println("Schedule string is not valid", err)
+		return false
+	}
+	currentTime := time.Now().In(est).Add(time.Minute)
+	return scheduleTime.After(currentTime)
 }

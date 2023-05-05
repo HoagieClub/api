@@ -130,6 +130,8 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 
 	if len(user.Name) == 0 {
 		http.Error(w, `Hoagie Mail has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
+		deleteVisitor(user.Email)
+		return
 	}
 
 	var mailReq MailRequest
