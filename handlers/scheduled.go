@@ -165,7 +165,7 @@ var scheduledSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Check if the specified scheduled send exists
+	// Check that the specified scheduled send exists
 	currentScheduledMail, err := getScheduled(user, scheduleEST)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s", err.Error()), http.StatusNotFound)
@@ -188,6 +188,19 @@ var scheduledSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 	newScheduleEST, err := time.ParseInLocation(time.RFC3339, scheduleReq.NewSchedule, est)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s", err.Error()), http.StatusNotFound)
+		return
+	}
+
+	// Check that user doesn't have an already-existing entry for the new time
+	currentScheduledMail, err = getScheduled(user, newScheduleEST)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+		return
+	}
+	if currentScheduledMail != (ScheduledMail{}) {
+		errString := "You already have an email scheduled for this time. If you would like to change"
+		errString += " your message, please delete your mail and try again."
+		http.Error(w, errString, http.StatusBadRequest)
 		return
 	}
 
