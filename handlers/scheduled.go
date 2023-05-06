@@ -46,7 +46,7 @@ func scheduleValid(schedule string) bool {
 }
 // Get scheduled mail at a certain time for a given user
 // Returns an empty struct if entry doesn't exist
-var getScheduled = func(user auth.User, scheduledTime time.Time) (ScheduledMail, error) {
+func getScheduled(user auth.User, scheduledTime time.Time) (ScheduledMail, error) {
 	var response ScheduledMail
 	err := db.FindOne(client, "apps", "mail", bson.D{
 		{Key: "Email", Value: user.Email},
@@ -59,7 +59,7 @@ var getScheduled = func(user auth.User, scheduledTime time.Time) (ScheduledMail,
 }
 
 // Get all scheduled mail for a given user
-var getAllScheduled = func(user auth.User) (UserScheduledMail, error) {
+func getAllScheduled(user auth.User) (UserScheduledMail, error) {
 	var responses []ScheduledMail
 
 	// Get responses in chronological order
