@@ -28,22 +28,11 @@ type ScheduledMail struct {
 	CreatedAt time.Time `json:"createdAt"`
 }
 
-// Returns true if the date/time schedule is at least a minute
-// after the current time, else false
-func scheduleValid(schedule string) bool {
-	est, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		fmt.Println("Could not load EST location", err)
-		return false
-	}
-	scheduleTime, err := time.ParseInLocation(time.RFC3339, schedule, est)
-	if err != nil {
-		fmt.Println("Schedule string is not valid", err)
-		return false
-	}
-	currentTime := time.Now().In(est).Add(time.Minute)
-	return scheduleTime.After(currentTime)
+type ScheduleRequest struct {
+	Schedule string `json:"schedule"`
+	NewSchedule string `json:"newSchedule"`
 }
+
 // Get scheduled mail at a certain time for a given user
 // Returns an empty struct if entry doesn't exist
 func getScheduled(user auth.User, scheduledTime time.Time) (ScheduledMail, error) {
@@ -155,8 +144,9 @@ var scheduledSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 	}
 	if len(user.Name) == 0 {
 		http.Error(w, `Hoagie has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
+		return
 	}
-
+	w.Header().Set("Content-Type", "application/json")
 
 })
 
@@ -169,6 +159,7 @@ var scheduledUserHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 	}
 	if len(user.Name) == 0 {
 		http.Error(w, `Hoagie has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
+		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 
@@ -182,11 +173,53 @@ var scheduledUserHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.
 	jsonResp, err := json.Marshal(userScheduledMail)
 	if err != nil {
 		http.Error(w, "Error in json response marshalling" + err.Error(), http.StatusBadRequest)
+		return
 	}
 	w.Write(jsonResp)
 })
 
 // DELETE /mail/scheduled
 var scheduledDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	user, success := getUser(r.Header.Get("authorization"))
+	if !success {
+		http.Error(w, "You do not have access to delete this scheduled mail.", http.StatusBadRequest)
+		return
+	}
+	if len(user.Name) == 0 {
+		http.Error(w, "Hoagie has been updated. Please log-out and log-in again.", http.StatusBadRequest)
+		return
+	}
 
+	w.Header().Set("Content-Type", "application/json")
+	var scheduleReq ScheduleRequest
+	err := json.NewDecoder(r.Body).Decode(&scheduleReq)
+	if err != nil {
+		http.Error(w, "Request body doesn't contain correct fields", http.StatusBadRequest)
+		return
+	}
+
+	// Convert time to EST and check for errors
+	est, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+		return
+	}
+	scheduleEST, err := time.ParseInLocation(time.RFC3339, scheduleReq.Schedule, est)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+		return
+	}
+	currentScheduledMail, err := getScheduled(user, scheduleEST)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+		return
+	}
+	if currentScheduledMail == (ScheduledMail{}) {
+		http.Error(w, "Could not find the specified email. Try refreshing the page.", http.StatusBadRequest)
+		return
+	}
+	err = db.DeleteOne(client, "apps", "mail", bson.D{
+		{Key: "Email", Value: user.Email},
+		{Key: "Schedule", Value: scheduleEST},
+	},)
 })
