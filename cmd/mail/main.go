@@ -93,14 +93,14 @@ func runScheduledSendScript() {
 				errorTotal++
 				continue // have better error handling?
 			}
-			currentMailFilter := bson.D{
-				{"Email", mailReq.Email},
-				{"Sender", mailReq.Sender},
-				{"Header", mailReq.Header},
-				{"Schedule", mailReq.Schedule},
-			}
-			db.DeleteOne(client, "apps", "mail", currentMailFilter)
 		}
+		currentMailFilter := bson.D{
+			{"Email", mailReq.Email},
+			{"Sender", mailReq.Sender},
+			{"Header", mailReq.Header},
+			{"Schedule", mailReq.Schedule},
+		}
+		db.DeleteOne(client, "apps", "mail", currentMailFilter)
 		total++
 	}
 	if errorTotal != 0 {
