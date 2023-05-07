@@ -98,42 +98,6 @@ func getAllScheduled(user auth.User) (UserScheduledMail, error) {
 	}, nil
 }
 
-// // Scheduled send
-// if mailReq.Schedule != "now" {
-// 	// Validate that schedule is valid
-// 	if !scheduleValid(mailReq.Schedule) {
-// 		deleteVisitor(user.Email)
-// 		http.Error(
-// 			w,
-// 			"Your email could not be scheduled at the specified time. Please refresh the page and select a later time.",
-// 			http.StatusBadRequest,
-// 		)
-// 		return
-// 	}
-// 	// Convert time to EST and check for errors
-// 	est, err := time.LoadLocation("America/New_York")
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
-// 		deleteVisitor(user.Email)
-// 		return
-// 	}
-// 	scheduleEST, err := time.ParseInLocation(time.RFC3339, mailReq.Schedule, est)
-// 	if err != nil {
-// 		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
-// 		deleteVisitor(user.Email)
-// 		return
-// 	}
-// 	// Add to MongoDB
-// 	db.InsertOne(client, "apps", "mail", bson.D{
-// 		{"Email", mailReq.Email},
-// 		{"Sender", mailReq.Sender},
-// 		{"Header", mailReq.Header},
-// 		{"Body", mailReq.Body},
-// 		{"Schedule", scheduleEST},
-// 		{"UserName", user.Name},
-// 		{"CreatedAt", time.Now()},
-// 	})
-
 // POST /mail/scheduled/user
 var scheduledSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	user, success := getUser(r.Header.Get("authorization"))
