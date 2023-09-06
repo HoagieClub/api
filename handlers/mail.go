@@ -4,15 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"hoagie-profile/db"
-	"hoagie-profile/auth"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
-	// "github.com/microcosm-cc/bluemonday"
-
+	bluemonday "github.com/microcosm-cc/bluemonday"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -25,7 +22,7 @@ type MailRequest struct {
 }
 
 // BlueMonday sanitizes HTML, preventing unsafe user input
-// var p = bluemonday.UGCPolicy()
+var p = bluemonday.UGCPolicy()
 
 func makeRequest(req MailRequest) error {
 	mailjetClient := mailjet.NewMailjetClient(os.Getenv("MAILJET_PUBLIC_KEY"), os.Getenv("MAILJET_PRIVATE_KEY"))
@@ -108,10 +105,8 @@ func userReachedLimit(user string) bool {
 
 // POST /mail/send
 var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	accessToken := strings.TrimPrefix(r.Header.Get("authorization"), "Bearer ")
-
-	user, err := auth.GetUser(accessToken)
-	if err != nil {
+	user, success := getUser(r.Header.Get("authorization"))
+	if !success {
 		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
 		return
 	}
@@ -135,7 +130,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	}
 
 	var mailReq MailRequest
-	err = json.NewDecoder(r.Body).Decode(&mailReq)
+	err := json.NewDecoder(r.Body).Decode(&mailReq)
 	if err != nil {
 		http.Error(w, "Message did not contain correct fields.", http.StatusBadRequest)
 		deleteVisitor(user.Email)
@@ -150,7 +145,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// mailReq.Body = p.Sanitize(mailReq.Body)
+	mailReq.Body = p.Sanitize(mailReq.Body)
 	mailReq.Email = user.Email
 
 	// Scheduled send
