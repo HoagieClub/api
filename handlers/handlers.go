@@ -17,6 +17,7 @@ var client *mongo.Client
 const (
 	mailRoute      = "/mail"
 	mailSendRoute  = "/mail/send"
+	mailSendTestEmailRoute = "/mail/sendTestEmail"
 	mailScheduledUserRoute = "/mail/scheduled/user"
 	stuffRoute     = "/stuff"
 	stuffUserRoute = "/stuff/user"
@@ -28,6 +29,7 @@ func Setup(r *mux.Router, cl *mongo.Client, m *jwtmiddleware.JWTMiddleware) {
 
 	if m == nil {
 		r.Handle(mailSendRoute, sendHandler).Methods("POST")
+		r.Handle(mailSendTestEmailRoute, sendTestEmailHandler).Methods("POST")
 		r.Handle(stuffUserRoute, stuffSendHandler).Methods("POST")
 		r.Handle(stuffUserRoute, stuffUserHandler).Methods("GET")
 		r.Handle(stuffUserRoute, stuffDeleteHandler).Methods("DELETE")
@@ -38,6 +40,7 @@ func Setup(r *mux.Router, cl *mongo.Client, m *jwtmiddleware.JWTMiddleware) {
 		return
 	} else {
 		r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
+		r.Handle(mailSendTestEmailRoute, sendTestEmailHandler).Methods("POST")
 		r.Handle(stuffUserRoute, m.Handler(stuffSendHandler)).Methods("POST")
 		r.Handle(stuffUserRoute, m.Handler(stuffUserHandler)).Methods("GET")
 		r.Handle(stuffUserRoute, m.Handler(stuffDeleteHandler)).Methods("DELETE")

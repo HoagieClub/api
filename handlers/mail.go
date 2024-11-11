@@ -98,20 +98,60 @@ func sendMail(req MailRequest) error {
 	return nil
 }
 
+// sendTestMail makes a request to mailjet to send the contents of
+// req to only the sender; the sender is the sole recipient of the
+// email
+// TODO: refactor into makeRequest?
+func sendTestMail(req MailRequest) error {
+	mailjetClient := mailjet.NewMailjetClient(os.Getenv("MAILJET_PUBLIC_KEY"), os.Getenv("MAILJET_PRIVATE_KEY"))
+	messagesInfo := []mailjet.InfoMessagesV31{
+		{
+			From: &mailjet.RecipientV31{
+				Email: "hoagie@princeton.edu",
+				Name:  req.Sender,
+			},
+			ReplyTo: &mailjet.RecipientV31{
+				Email: req.Email,
+				Name:  req.Sender,
+			},
+			To: &mailjet.RecipientsV31{
+				mailjet.RecipientV31{
+					Email: req.Email,
+					Name:  req.Sender,
+				},
+			},
+			Subject:  req.Header,
+			TextPart: req.Body,
+			HTMLPart: req.Body,
+			CustomID: "HoagieMail",
+		},
+	}
+	messages := mailjet.MessagesV31{Info: messagesInfo}
+	res, err := mailjetClient.SendMailV31(&messages)
+	if err != nil {
+		return err
+	}
+	if len(res.ResultsV31) > 0 && res.ResultsV31[0].Status == "success" {
+		return nil
+	}
+	return fmt.Errorf("mail service received an error, possibly because of limits")
+}
+
 func userReachedLimit(user string) bool {
 	userLimit := getVisitor(user)
 	return !userLimit.Allow()
 }
 
-// POST /mail/send
-var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func processSendRequest(w http.ResponseWriter, r *http.Request, testEmail bool) {
 	user, success := getUser(r.Header.Get("authorization"))
 	if !success {
 		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
 		return
 	}
+
 	// Ignore user limits when debugging
-	if os.Getenv("HOAGIE_MODE") != "debug" {
+	// TODO: think carefully about email limits when sending test emails!!
+	if os.Getenv("HOAGIE_MODE") != "debug" || testEmail {
 		if userReachedLimit(user.Email) {
 			http.Error(w, `
 				You have reached your send limit. 
@@ -148,13 +188,18 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	mailReq.Body = p.Sanitize(mailReq.Body)
 	mailReq.Email = user.Email
 
+	// Always send test emails immediately; do not attempt to schedule
+	if testEmail {
+		mailReq.Schedule = "now"
+	}
+
 	// Scheduled send
 	if mailReq.Schedule != "now" {
 		// Validate that schedule is valid
 		if !scheduleValid(mailReq.Schedule) {
 			deleteVisitor(user.Email)
 			http.Error(
-				w, 
+				w,
 				"Your email could not be scheduled at the specified time. Please refresh the page and select a later time.",
 				http.StatusBadRequest,
 			)
@@ -220,10 +265,14 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		w.Write([]byte("{\"Status\": \"OK\"}"))
 		return
 	}
-	
+
 	// Normal send
 	if mailReq.Schedule == "now" {
-		err = sendMail(mailReq)
+		if !testEmail {
+			err = sendMail(mailReq)
+		} else {
+			err = sendTestMail(mailReq)
+		}
 
 		fmt.Printf("MAIL: %s sent an email with title '%s'.", mailReq.Email, mailReq.Header)
 
@@ -235,4 +284,14 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{\"Status\": \"OK\"}"))
+}
+
+// POST /mail/send
+var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	processSendRequest(w, r, false)
+})
+
+// POST /mail/sendTestEmail
+var sendTestEmailHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	processSendRequest(w, r, true)
 })
