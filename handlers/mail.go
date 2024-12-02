@@ -14,10 +14,10 @@ import (
 )
 
 type MailRequest struct {
-	Header string
-	Sender string
-	Body   string
-	Email  string
+	Header   string
+	Sender   string
+	Body     string
+	Email    string
 	Schedule string
 }
 
@@ -151,7 +151,7 @@ func processSendRequest(w http.ResponseWriter, r *http.Request, testEmail bool) 
 
 	// Ignore user limits when debugging
 	// TODO: think carefully about email limits when sending test emails!!
-	if os.Getenv("HOAGIE_MODE") != "debug" || testEmail {
+	if os.Getenv("HOAGIE_MODE") != "debug" || !testEmail {
 		if userReachedLimit(user.Email) {
 			http.Error(w, `
 				You have reached your send limit. 
@@ -291,7 +291,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	processSendRequest(w, r, false)
 })
 
-// POST /mail/sendTestEmail
-var sendTestEmailHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// POST /mail/sendTestMail
+var sendTestMailHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	processSendRequest(w, r, true)
 })
