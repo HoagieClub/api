@@ -151,7 +151,7 @@ func processSendRequest(w http.ResponseWriter, r *http.Request, testEmail bool) 
 
 	// Ignore user limits when debugging
 	// TODO: think carefully about email limits when sending test emails!!
-	if os.Getenv("HOAGIE_MODE") != "debug" || !testEmail {
+	if os.Getenv("HOAGIE_MODE") != "debug" && !testEmail {
 		if userReachedLimit(user.Email) {
 			http.Error(w, `
 				You have reached your send limit. 
