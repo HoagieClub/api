@@ -40,7 +40,7 @@ func Setup(r *mux.Router, cl *mongo.Client, m *jwtmiddleware.JWTMiddleware) {
 		return
 	} else {
 		r.Handle(mailSendRoute, m.Handler(sendHandler)).Methods("POST")
-		r.Handle(mailSendTestMailRoute, sendTestMailHandler).Methods("POST")
+		r.Handle(mailSendTestMailRoute, m.Handler(sendTestMailHandler)).Methods("POST")
 		r.Handle(stuffUserRoute, m.Handler(stuffSendHandler)).Methods("POST")
 		r.Handle(stuffUserRoute, m.Handler(stuffUserHandler)).Methods("GET")
 		r.Handle(stuffUserRoute, m.Handler(stuffDeleteHandler)).Methods("DELETE")
