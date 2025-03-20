@@ -24,60 +24,98 @@ type MailRequest struct {
 // BlueMonday sanitizes HTML, preventing unsafe user input
 var p = bluemonday.UGCPolicy()
 
-func makeRequest(req MailRequest) error {
+// makeRequest makes a request to mailjet to send the contents of req
+//
+//	to either all the listservs or simply the sender themselves
+//	depending on whether email is marked as a testMail or not
+//
+// params:
+//
+//	req        - contents of email request
+//	isTestMail - if true, req is sent back to the sender
+//	             if false, req is sent to all the listservs
+func makeRequest(req MailRequest, isTestMail bool) error {
 	mailjetClient := mailjet.NewMailjetClient(os.Getenv("MAILJET_PUBLIC_KEY"), os.Getenv("MAILJET_PRIVATE_KEY"))
-	messagesInfo := []mailjet.InfoMessagesV31{
-		{
-			From: &mailjet.RecipientV31{
-				Email: "hoagie@princeton.edu",
-				Name:  req.Sender,
-			},
-			ReplyTo: &mailjet.RecipientV31{
-				Email: req.Email,
-				Name:  req.Sender,
-			},
-			To: &mailjet.RecipientsV31{
-				mailjet.RecipientV31{
+
+	var messagesInfo []mailjet.InfoMessagesV31
+	if !isTestMail { // This request is normal and should send to all listservs
+		messagesInfo = []mailjet.InfoMessagesV31{
+			{
+				From: &mailjet.RecipientV31{
+					Email: "hoagie@princeton.edu",
+					Name:  req.Sender,
+				},
+				ReplyTo: &mailjet.RecipientV31{
 					Email: req.Email,
 					Name:  req.Sender,
 				},
+				To: &mailjet.RecipientsV31{
+					mailjet.RecipientV31{
+						Email: req.Email,
+						Name:  req.Sender,
+					},
+				},
+				Cc: &mailjet.RecipientsV31{
+					mailjet.RecipientV31{
+						Email: "BUTLERBUZZ@PRINCETON.EDU",
+						Name:  "Butler",
+					},
+					mailjet.RecipientV31{
+						Email: "WHITMANWIRE@PRINCETON.EDU",
+						Name:  "Whitman",
+					},
+					mailjet.RecipientV31{
+						Email: "RockyWire@PRINCETON.EDU",
+						Name:  "Rocky",
+					},
+					mailjet.RecipientV31{
+						Email: "Re-INNformer@PRINCETON.EDU",
+						Name:  "Forbes",
+					},
+					mailjet.RecipientV31{
+						Email: "westwire@princeton.edu",
+						Name:  "NCW",
+					},
+					mailjet.RecipientV31{
+						Email: "matheymail@PRINCETON.EDU",
+						Name:  "Mathey",
+					},
+					mailjet.RecipientV31{
+						Email: "yehyellowpages@princeton.edu",
+						Name:  "Yeh",
+					},
+				},
+				Subject:  req.Header,
+				TextPart: req.Body,
+				HTMLPart: req.Body,
+				CustomID: "HoagieMail",
 			},
-			Cc: &mailjet.RecipientsV31{
-				mailjet.RecipientV31{
-					Email: "BUTLERBUZZ@PRINCETON.EDU",
-					Name:  "Butler",
+		}
+	} else { // Case where email is test email
+		messagesInfo = []mailjet.InfoMessagesV31{
+			{
+				From: &mailjet.RecipientV31{
+					Email: "hoagie@princeton.edu",
+					Name:  req.Sender,
 				},
-				mailjet.RecipientV31{
-					Email: "WHITMANWIRE@PRINCETON.EDU",
-					Name:  "Whitman",
+				ReplyTo: &mailjet.RecipientV31{
+					Email: req.Email,
+					Name:  req.Sender,
 				},
-				mailjet.RecipientV31{
-					Email: "RockyWire@PRINCETON.EDU",
-					Name:  "Rocky",
+				To: &mailjet.RecipientsV31{
+					mailjet.RecipientV31{
+						Email: req.Email,
+						Name:  req.Sender,
+					},
 				},
-				mailjet.RecipientV31{
-					Email: "Re-INNformer@PRINCETON.EDU",
-					Name:  "Forbes",
-				},
-				mailjet.RecipientV31{
-					Email: "westwire@princeton.edu",
-					Name:  "NCW",
-				},
-				mailjet.RecipientV31{
-					Email: "matheymail@PRINCETON.EDU",
-					Name:  "Mathey",
-				},
-				mailjet.RecipientV31{
-					Email: "yehyellowpages@princeton.edu",
-					Name:  "Yeh",
-				},
+				Subject:  req.Header,
+				TextPart: req.Body,
+				HTMLPart: req.Body,
+				CustomID: "HoagieMail",
 			},
-			Subject:  req.Header,
-			TextPart: req.Body,
-			HTMLPart: req.Body,
-			CustomID: "HoagieMail",
-		},
-	}
+		}
+	} // endif !isTestMail
+
 	messages := mailjet.MessagesV31{Info: messagesInfo}
 	res, err := mailjetClient.SendMailV31(&messages)
 	if err != nil {
@@ -89,8 +127,8 @@ func makeRequest(req MailRequest) error {
 	return fmt.Errorf("mail service received an error, possibly because of limits")
 }
 
-func sendMail(req MailRequest) error {
-	err := makeRequest(req)
+func sendMail(req MailRequest, isTestMail bool) error {
+	err := makeRequest(req, isTestMail)
 	if err != nil {
 		return err
 		// TODO: be better with status code handling. Most likely just == 400.
@@ -98,51 +136,12 @@ func sendMail(req MailRequest) error {
 	return nil
 }
 
-// sendTestMail makes a request to mailjet to send the contents of
-// req to only the sender; the sender is the sole recipient of the
-// email
-// TODO: refactor into makeRequest?
-func sendTestMail(req MailRequest) error {
-	mailjetClient := mailjet.NewMailjetClient(os.Getenv("MAILJET_PUBLIC_KEY"), os.Getenv("MAILJET_PRIVATE_KEY"))
-	messagesInfo := []mailjet.InfoMessagesV31{
-		{
-			From: &mailjet.RecipientV31{
-				Email: "hoagie@princeton.edu",
-				Name:  req.Sender,
-			},
-			ReplyTo: &mailjet.RecipientV31{
-				Email: req.Email,
-				Name:  req.Sender,
-			},
-			To: &mailjet.RecipientsV31{
-				mailjet.RecipientV31{
-					Email: req.Email,
-					Name:  req.Sender,
-				},
-			},
-			Subject:  req.Header,
-			TextPart: req.Body,
-			HTMLPart: req.Body,
-			CustomID: "HoagieMail",
-		},
-	}
-	messages := mailjet.MessagesV31{Info: messagesInfo}
-	res, err := mailjetClient.SendMailV31(&messages)
-	if err != nil {
-		return err
-	}
-	if len(res.ResultsV31) > 0 && res.ResultsV31[0].Status == "success" {
-		return nil
-	}
-	return fmt.Errorf("mail service received an error, possibly because of limits")
-}
-
 func userReachedLimit(user string) bool {
 	userLimit := getVisitor(user)
 	return !userLimit.Allow()
 }
 
-func processSendRequest(w http.ResponseWriter, r *http.Request, testEmail bool) {
+func processSendRequest(w http.ResponseWriter, r *http.Request, isTestEmail bool) {
 	user, success := getUser(r.Header.Get("authorization"))
 	if !success {
 		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
@@ -151,7 +150,7 @@ func processSendRequest(w http.ResponseWriter, r *http.Request, testEmail bool) 
 
 	// Ignore user limits when debugging
 	// TODO: think carefully about email limits when sending test emails!!
-	if os.Getenv("HOAGIE_MODE") != "debug" && !testEmail {
+	if os.Getenv("HOAGIE_MODE") != "debug" && !isTestEmail {
 		if userReachedLimit(user.Email) {
 			http.Error(w, `
 				You have reached your send limit. 
@@ -189,7 +188,7 @@ func processSendRequest(w http.ResponseWriter, r *http.Request, testEmail bool) 
 	mailReq.Email = user.Email
 
 	// Always send test emails immediately; do not attempt to schedule
-	if testEmail {
+	if isTestEmail {
 		mailReq.Schedule = "now"
 	}
 
@@ -268,11 +267,7 @@ func processSendRequest(w http.ResponseWriter, r *http.Request, testEmail bool) 
 
 	// Normal send
 	if mailReq.Schedule == "now" {
-		if !testEmail {
-			err = sendMail(mailReq)
-		} else {
-			err = sendTestMail(mailReq)
-		}
+		err = sendMail(mailReq, isTestEmail)
 
 		fmt.Printf("MAIL: %s sent an email with title '%s'.", mailReq.Email, mailReq.Header)
 
