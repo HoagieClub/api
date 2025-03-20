@@ -84,6 +84,10 @@ func makeRequest(req MailRequest, isTestMail bool) error {
 						Email: "yehyellowpages@princeton.edu",
 						Name:  "Yeh",
 					},
+				  mailjet.RecipientV31{
+					  Email: "hoagiemailgradstudents@princeton.edu",
+					  Name:  "hoagiemailgradstudents",
+				  },
 				},
 				Subject:  req.Header,
 				TextPart: req.Body,
