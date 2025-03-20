@@ -13,13 +13,20 @@ import (
 // Mail request limit is 1 request every 6 hours
 const mailLimitNumber = 6 * time.Hour
 
+// Test email limit is once per minute
+const testMailLimitNumber = 1 * time.Minute
+
 var mailLimit = rate.Every(mailLimitNumber / 1)
+var testMailLimit = rate.Every(testMailLimitNumber / 1)
 
 // Create a custom visitor struct which holds the rate limiter for each
 // visitor and the last time that the visitor was seen.
+// Also contains testLimiter for limiting rate of test emails
+// this visitor is allowed to send
 type visitor struct {
-	limiter  *rate.Limiter
-	lastSeen time.Time
+	limiter     *rate.Limiter
+	testLimiter *rate.Limiter
+	lastSeen    time.Time
 }
 
 // Change the the map to hold values of the type visitor.
@@ -31,21 +38,25 @@ func init() {
 	go cleanupVisitors()
 }
 
-func getVisitor(email string) *rate.Limiter {
+// getVisitor returns visitor queried by their email handle
+//
+//	If the visitor does not already exist, a new entry for that visitor is created
+func getVisitor(email string) *visitor {
 	mu.Lock()
 	defer mu.Unlock()
 
 	v, exists := visitors[email]
 	if !exists {
 		limiter := rate.NewLimiter(mailLimit, 1)
+		testLimiter := rate.NewLimiter(testMailLimit, 1)
 		// Include the current time when creating a new visitor.
-		visitors[email] = &visitor{limiter, time.Now()}
-		return limiter
+		visitors[email] = &visitor{limiter, testLimiter, time.Now()}
+		return visitors[email]
 	}
 
 	// Update the last seen time for the visitor.
 	v.lastSeen = time.Now()
-	return v.limiter
+	return v
 }
 
 // Deletes visitor limit, noop if not existent

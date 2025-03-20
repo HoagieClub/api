@@ -136,9 +136,16 @@ func sendMail(req MailRequest, isTestMail bool) error {
 	return nil
 }
 
-func userReachedLimit(user string) bool {
-	userLimit := getVisitor(user)
-	return !userLimit.Allow()
+// userReachedLimit finds whether user has exceeded limits for either
+// normal emails or test emails
+// NOTE: this function has the side effect of using up a rate limiter token
+// if the user has yet to exceed limits
+func userReachedLimit(user string, isTestMail bool) bool {
+	visitor := getVisitor(user)
+	if !isTestMail {
+		return !visitor.limiter.Allow()
+	}
+	return !visitor.testLimiter.Allow()
 }
 
 func processSendRequest(w http.ResponseWriter, r *http.Request, isTestEmail bool) {
@@ -149,9 +156,8 @@ func processSendRequest(w http.ResponseWriter, r *http.Request, isTestEmail bool
 	}
 
 	// Ignore user limits when debugging
-	// TODO: think carefully about email limits when sending test emails!!
-	if os.Getenv("HOAGIE_MODE") != "debug" && !isTestEmail {
-		if userReachedLimit(user.Email) {
+	if os.Getenv("HOAGIE_MODE") != "debug" {
+		if userReachedLimit(user.Email, isTestEmail) {
 			http.Error(w, `
 				You have reached your send limit. 
 				You can only send one email every 6 hours. 
