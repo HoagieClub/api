@@ -10,42 +10,49 @@ import (
 // This is a temporary process-based limit implementation;
 // In the future, we probably want to switch to a database-powered approach
 
-// Mail request limit is 1 request every 6 hours
+// Mail request limit is 1 per 6 hours
 const mailLimitNumber = 6 * time.Hour
+var mailLimit = rate.Every(mailLimitNumber)
 
-var mailLimit = rate.Every(mailLimitNumber / 1)
+// Test email limit is 1 per minute
+const testMailLimitNumber = 1 * time.Minute
+var testMailLimit = rate.Every(testMailLimitNumber)
 
-// Create a custom visitor struct which holds the rate limiter for each
-// visitor and the last time that the visitor was seen.
+// Holds rate limiters for normal emails and test emails
 type visitor struct {
-	limiter  *rate.Limiter
-	lastSeen time.Time
+	emailLimiter     *rate.Limiter
+	testEmailLimiter *rate.Limiter
+	lastSeen    time.Time
 }
 
-// Change the the map to hold values of the type visitor.
+// Map email handle to visitor pointers
 var visitors = make(map[string]*visitor)
 var mu sync.Mutex
 
-// Run a background goroutine to remove old entries from the visitors map.
+// Run a background goroutine to remove old entries from the visitors map
 func init() {
 	go cleanupVisitors()
 }
 
-func getVisitor(email string) *rate.Limiter {
+// getVisitor returns a visitor queried by their email handle.
+// If the visitor does not already exist, create a new entry for that visitor
+func getVisitor(email string) *visitor {
 	mu.Lock()
 	defer mu.Unlock()
 
 	v, exists := visitors[email]
 	if !exists {
-		limiter := rate.NewLimiter(mailLimit, 1)
+		emailLimiter := rate.NewLimiter(mailLimit, 1)
+		testEmailLimiter := rate.NewLimiter(testMailLimit, 1)
+
 		// Include the current time when creating a new visitor.
-		visitors[email] = &visitor{limiter, time.Now()}
-		return limiter
+		visitors[email] = &visitor{emailLimiter, testEmailLimiter, time.Now()}
+		return visitors[email]
 	}
 
-	// Update the last seen time for the visitor.
+	// Update the last seen time for the visitor
 	v.lastSeen = time.Now()
-	return v.limiter
+	return v
 }
 
 // Deletes visitor limit, noop if not existent
@@ -55,8 +62,8 @@ func deleteVisitor(email string) {
 	delete(visitors, email)
 }
 
-// Every 6 hours check the map for visitors that haven't been seen for
-// more than 6 hours and delete the entries.
+// Every 6 hours, check the map for visitors that haven't been seen for
+// more than 6 hours and delete the entries
 func cleanupVisitors() {
 	for {
 		time.Sleep(mailLimitNumber)
