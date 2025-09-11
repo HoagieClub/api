@@ -17,6 +17,18 @@ import (
 // BlueMonday sanitizes HTML, preventing unsafe user input
 var p = bluemonday.UGCPolicy()
 
+const NORMAL_EMAIL_FOOTER = `<hr />` +
+	`<div style="font-size:8pt;">This email was instantly sent to all ` +
+	`college listservs with <a href="https://mail.hoagie.io/">Hoagie Mail</a>. ` +
+	`Email composed by %s (%s) — if you believe this email is offensive, ` +
+	`intentionally misleading or harmful, please report it to ` +
+	`<a href="mailto:hoagie@princeton.edu">hoagie@princeton.edu</a>.</div>`
+
+const TEST_EMAIL_FOOTER = `<hr />` +
+	`<div style="font-size:8pt;">This test email was instantly sent only ` +
+	`to you with <a href="https://mail.hoagie.io/">Hoagie Mail</a>. ` +
+	`Email composed by %s (%s).</div>`
+
 type MailRequest struct {
 	Header   string
 	Sender   string
@@ -186,14 +198,6 @@ func handleScheduledEmail(w http.ResponseWriter, mailReq MailRequest, user auth.
 }
 
 func handleEmailNow(w http.ResponseWriter, mailReq MailRequest, user auth.User) bool {
-	mailReq.Body += fmt.Sprintf(`
-	<hr />
-	<div style="font-size:8pt;">This email was instantly sent to all
-	college listservs with <a href="https://mail.hoagie.io/">Hoagie Mail</a>. 
-	Email composed by %s (%s) — if you believe this email
-	is offensive, intentionally misleading or harmful, please report it to
-	<a href="mailto:hoagie@princeton.edu">hoagie@princeton.edu</a>.</div>
-	`, user.Name, mailReq.Email)
 
 	// Ignore user limits when debugging
 	if os.Getenv("HOAGIE_MODE") != "debug" {
@@ -214,6 +218,12 @@ func handleEmailNow(w http.ResponseWriter, mailReq MailRequest, user auth.User) 
 				http.StatusTooManyRequests)
 			return false
 		}
+	}
+
+	if mailReq.Schedule != "test" {
+		mailReq.Body += fmt.Sprintf(NORMAL_EMAIL_FOOTER, user.Name, mailReq.Email)
+	} else {
+		mailReq.Body += fmt.Sprintf(TEST_EMAIL_FOOTER, user.Name, mailReq.Email)
 	}
 
 	err := sendEmail(mailReq)
