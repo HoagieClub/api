@@ -7,7 +7,6 @@ import (
 	"hoagie-profile/db"
 	"net/http"
 	"os"
-	"regexp"
 	"time"
 
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
@@ -17,6 +16,8 @@ import (
 
 // BlueMonday sanitizes HTML, preventing unsafe user input
 var p = bluemonday.UGCPolicy()
+var SAFE_CSS_PROPERTIES = []string{"width", "height", "color", "background-color", "font-size",
+	"margin-left", "text-align", "font-family", "line-height"}
 
 const NORMAL_EMAIL_FOOTER = `<hr />` +
 	`<div style="font-size:8pt;">This email was instantly sent to all ` +
@@ -268,7 +269,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	p.AllowStyles("width", "height").Matching(regexp.MustCompile(`^\d+(?:px|%)$`)).Globally()
+	p.AllowStyles(SAFE_CSS_PROPERTIES...).Globally()
 	mailReq.Body = p.Sanitize(mailReq.Body)
 	mailReq.Email = user.Email
 
