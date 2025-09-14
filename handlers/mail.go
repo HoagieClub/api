@@ -7,6 +7,7 @@ import (
 	"hoagie-profile/db"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
@@ -267,6 +268,7 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	p.AllowStyles("width", "height").Matching(regexp.MustCompile(`^\d+(?:px|%)$`)).Globally()
 	mailReq.Body = p.Sanitize(mailReq.Body)
 	mailReq.Email = user.Email
 
