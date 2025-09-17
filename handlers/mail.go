@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"hoagie-profile/auth"
 	"hoagie-profile/db"
 	"net/http"
 	"os"
@@ -13,20 +14,70 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// BlueMonday sanitizes HTML, preventing unsafe user input
+var p = bluemonday.UGCPolicy()
+var SAFE_CSS_PROPERTIES = []string{"width", "height", "color", "background-color", "font-size",
+	"margin-left", "text-align", "font-family", "line-height"}
+
+const NORMAL_EMAIL_FOOTER = `<hr />` +
+	`<div style="font-size:8pt;">This email was instantly sent to all ` +
+	`college listservs with <a href="https://mail.hoagie.io/">Hoagie Mail</a>. ` +
+	`Email composed by %s (%s) — if you believe this email is offensive, ` +
+	`intentionally misleading or harmful, please report it to ` +
+	`<a href="mailto:hoagie@princeton.edu">hoagie@princeton.edu</a>.</div>`
+
+const TEST_EMAIL_FOOTER = `<hr />` +
+	`<div style="font-size:8pt;">This test email was instantly sent only ` +
+	`to you with <a href="https://mail.hoagie.io/">Hoagie Mail</a>. ` +
+	`Email composed by %s (%s).</div>`
+
 type MailRequest struct {
-	Header string
-	Sender string
-	Body   string
-	Email  string
+	Header   string
+	Sender   string
+	Body     string
+	Email    string
 	Schedule string
 }
 
-// BlueMonday sanitizes HTML, preventing unsafe user input
-var p = bluemonday.UGCPolicy()
+func getListServs() *mailjet.RecipientsV31 {
+	return &mailjet.RecipientsV31{
+		mailjet.RecipientV31{
+			Email: "BUTLERBUZZ@PRINCETON.EDU",
+			Name:  "Butler",
+		},
+		mailjet.RecipientV31{
+			Email: "WHITMANWIRE@PRINCETON.EDU",
+			Name:  "Whitman",
+		},
+		mailjet.RecipientV31{
+			Email: "RockyWire@PRINCETON.EDU",
+			Name:  "Rocky",
+		},
+		mailjet.RecipientV31{
+			Email: "Re-INNformer@PRINCETON.EDU",
+			Name:  "Forbes",
+		},
+		mailjet.RecipientV31{
+			Email: "westwire@princeton.edu",
+			Name:  "NCW",
+		},
+		mailjet.RecipientV31{
+			Email: "matheymail@PRINCETON.EDU",
+			Name:  "Mathey",
+		},
+		mailjet.RecipientV31{
+			Email: "yehyellowpages@princeton.edu",
+			Name:  "Yeh",
+		},
+		mailjet.RecipientV31{
+			Email: "hoagiemailgradstudents@princeton.edu",
+			Name:  "hoagiemailgradstudents",
+		},
+	}
+}
 
-func makeRequest(req MailRequest) error {
-	mailjetClient := mailjet.NewMailjetClient(os.Getenv("MAILJET_PUBLIC_KEY"), os.Getenv("MAILJET_PRIVATE_KEY"))
-	messagesInfo := []mailjet.InfoMessagesV31{
+func createInfoMessage(req MailRequest, toEmail string) []mailjet.InfoMessagesV31 {
+	return []mailjet.InfoMessagesV31{
 		{
 			From: &mailjet.RecipientV31{
 				Email: "hoagie@princeton.edu",
@@ -38,42 +89,8 @@ func makeRequest(req MailRequest) error {
 			},
 			To: &mailjet.RecipientsV31{
 				mailjet.RecipientV31{
-					Email: req.Email,
+					Email: toEmail,
 					Name:  req.Sender,
-				},
-			},
-			Cc: &mailjet.RecipientsV31{
-				mailjet.RecipientV31{
-					Email: "BUTLERBUZZ@PRINCETON.EDU",
-					Name:  "Butler",
-				},
-				mailjet.RecipientV31{
-					Email: "WHITMANWIRE@PRINCETON.EDU",
-					Name:  "Whitman",
-				},
-				mailjet.RecipientV31{
-					Email: "RockyWire@PRINCETON.EDU",
-					Name:  "Rocky",
-				},
-				mailjet.RecipientV31{
-					Email: "Re-INNformer@PRINCETON.EDU",
-					Name:  "Forbes",
-				},
-				mailjet.RecipientV31{
-					Email: "westwire@princeton.edu",
-					Name:  "NCW",
-				},
-				mailjet.RecipientV31{
-					Email: "matheymail@PRINCETON.EDU",
-					Name:  "Mathey",
-				},
-				mailjet.RecipientV31{
-					Email: "yehyellowpages@princeton.edu",
-					Name:  "Yeh",
-				},
-				mailjet.RecipientV31{
-					Email: "hoagiemailgradstudents@princeton.edu",
-					Name:  "hoagiemailgradstudents",
 				},
 			},
 			Subject:  req.Header,
@@ -82,29 +99,148 @@ func makeRequest(req MailRequest) error {
 			CustomID: "HoagieMail",
 		},
 	}
+}
+
+func sendEmail(req MailRequest) error {
+
+	var messagesInfo []mailjet.InfoMessagesV31
+
+	if req.Schedule != "test" {
+		messagesInfo = createInfoMessage(req, "hoagie@princeton.edu")
+		messagesInfo[0].Cc = getListServs()
+	} else {
+		messagesInfo = createInfoMessage(req, req.Email)
+	}
+
 	messages := mailjet.MessagesV31{Info: messagesInfo}
+
+	if os.Getenv("HOAGIE_MODE") == "debug" {
+		printDebug(messages)
+		return nil
+	}
+
+	mailjetClient := mailjet.NewMailjetClient(os.Getenv("MAILJET_PUBLIC_KEY"), os.Getenv("MAILJET_PRIVATE_KEY"))
 	res, err := mailjetClient.SendMailV31(&messages)
+
 	if err != nil {
 		return err
 	}
 	if len(res.ResultsV31) > 0 && res.ResultsV31[0].Status == "success" {
 		return nil
 	}
+
 	return fmt.Errorf("mail service received an error, possibly because of limits")
 }
 
-func sendMail(req MailRequest) error {
-	err := makeRequest(req)
-	if err != nil {
-		return err
-		// TODO: be better with status code handling. Most likely just == 400.
+func printDebug(messages mailjet.MessagesV31) {
+	fmt.Printf("Sender Name: %s\n", (*messages.Info[0].From).Name)
+	fmt.Printf("From: %s\n", (*messages.Info[0].From).Email)
+	fmt.Printf("ReplyTo: %s\n", (*messages.Info[0].ReplyTo).Email)
+	fmt.Printf("To: %s\n", (*messages.Info[0].To)[0].Email)
+	if messages.Info[0].Cc == nil {
+		fmt.Printf("CC: 0 recipients\n")
+	} else {
+		ccRecipients := (*messages.Info[0].Cc)
+		fmt.Printf("CC: %d recipients\n", len(ccRecipients))
+		for _, recipient := range ccRecipients {
+			fmt.Printf("\t%s\n", recipient.Email)
+		}
 	}
-	return nil
+	fmt.Printf("Subject: %s\n", messages.Info[0].Subject)
+	fmt.Printf("Body: %s\n", messages.Info[0].TextPart)
 }
 
-func userReachedLimit(user string) bool {
-	userLimit := getVisitor(user)
-	return !userLimit.Allow()
+func handleScheduledEmail(w http.ResponseWriter, mailReq MailRequest, user auth.User) bool {
+	// Validate that schedule is valid
+	if !scheduleValid(mailReq.Schedule) {
+		http.Error(
+			w,
+			"Your email could not be scheduled at the specified time. Please refresh the page and select a later time.",
+			http.StatusBadRequest,
+		)
+		return false
+	}
+
+	// Convert time to EST and check for errors
+	est, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+		return false
+	}
+	scheduleEST, err := time.ParseInLocation(time.RFC3339, mailReq.Schedule, est)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+		return false
+	}
+
+	// Check that user doesn't have an already-existing entry
+	currentScheduledMail, err := getScheduled(user, scheduleEST)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+		return false
+	}
+	if currentScheduledMail != (ScheduledMail{}) {
+		errString := "You already have an email scheduled for this time. If you would like to change"
+		errString += " your message, please delete your mail in the Scheduled Emails page and try again."
+		http.Error(w, errString, http.StatusBadRequest)
+		return false
+	}
+
+	// Add to MongoDB
+	db.InsertOne(client, "apps", "mail", bson.D{
+		{Key: "Email", Value: mailReq.Email},
+		{Key: "Sender", Value: mailReq.Sender},
+		{Key: "Header", Value: mailReq.Header},
+		{Key: "Body", Value: mailReq.Body},
+		{Key: "Schedule", Value: scheduleEST},
+		{Key: "UserName", Value: user.Name},
+		{Key: "CreatedAt", Value: time.Now()},
+	})
+	return true
+}
+
+func handleEmailNow(w http.ResponseWriter, mailReq MailRequest, user auth.User) bool {
+
+	// Ignore user limits when debugging
+	if os.Getenv("HOAGIE_MODE") != "debug" {
+		visitor := getVisitor(user.Email)
+
+		if mailReq.Schedule == "test" {
+			if !visitor.testEmailLimiter.Allow() {
+				http.Error(w, "You have reached your send limit. "+
+					"You can only send one test email every 1 minute.",
+					http.StatusTooManyRequests)
+				return false
+			}
+		} else if !visitor.emailLimiter.Allow() {
+			http.Error(w, "You have reached your send limit. "+
+				"You can only send one email every 6 hours. "+
+				"If you need to send an email urgently, "+
+				"please contact hoagie@princeton.edu",
+				http.StatusTooManyRequests)
+			return false
+		}
+	}
+
+	if mailReq.Schedule != "test" {
+		mailReq.Body += fmt.Sprintf(NORMAL_EMAIL_FOOTER, user.Name, mailReq.Email)
+	} else {
+		mailReq.Body += fmt.Sprintf(TEST_EMAIL_FOOTER, user.Name, mailReq.Email)
+	}
+
+	err := sendEmail(mailReq)
+
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
+		deleteVisitor(user.Email)
+		return false
+	}
+
+	if mailReq.Schedule != "test" {
+		fmt.Printf("MAIL: %s sent an email with title '%s'.\n", mailReq.Email, mailReq.Header)
+	}
+
+	return true
 }
 
 // POST /mail/send
@@ -114,22 +250,9 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "You do not have access to send mail.", http.StatusBadRequest)
 		return
 	}
-	// Ignore user limits when debugging
-	if os.Getenv("HOAGIE_MODE") != "debug" {
-		if userReachedLimit(user.Email) {
-			http.Error(w, `
-				You have reached your send limit. 
-				You can only send one email every 6 hours. 
-				If you need to send an email urgently, 
-				please contact hoagie@princeton.edu`,
-				http.StatusTooManyRequests)
-			return
-		}
-	}
 
 	if len(user.Name) == 0 {
 		http.Error(w, `Hoagie Mail has been updated. Please log-out and log-in again.`, http.StatusBadRequest)
-		deleteVisitor(user.Email)
 		return
 	}
 
@@ -137,106 +260,31 @@ var sendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) 
 	err := json.NewDecoder(r.Body).Decode(&mailReq)
 	if err != nil {
 		http.Error(w, "Message did not contain correct fields.", http.StatusBadRequest)
-		deleteVisitor(user.Email)
 		return
 	}
 	if notBetween(w, mailReq.Sender, "sender name", 3, 30) {
-		deleteVisitor(user.Email)
 		return
 	}
 	if notBetween(w, mailReq.Header, "email subject", 3, 150) {
-		deleteVisitor(user.Email)
 		return
 	}
 
+	p.AllowStyles(SAFE_CSS_PROPERTIES...).Globally()
 	mailReq.Body = p.Sanitize(mailReq.Body)
 	mailReq.Email = user.Email
 
-	// Scheduled send
-	if mailReq.Schedule != "now" {
-		// Validate that schedule is valid
-		if !scheduleValid(mailReq.Schedule) {
-			deleteVisitor(user.Email)
-			http.Error(
-				w, 
-				"Your email could not be scheduled at the specified time. Please refresh the page and select a later time.",
-				http.StatusBadRequest,
-			)
+	if mailReq.Schedule != "now" && mailReq.Schedule != "test" {
+		success := handleScheduledEmail(w, mailReq, user)
+		if !success {
 			return
 		}
-		// Convert time to EST and check for errors
-		est, err := time.LoadLocation("America/New_York")
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
-			deleteVisitor(user.Email)
-			return
-		}
-		scheduleEST, err := time.ParseInLocation(time.RFC3339, mailReq.Schedule, est)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
-			deleteVisitor(user.Email)
-			return
-		}
-
-		// Check that user doesn't have an already-existing entry
-		currentScheduledMail, err := getScheduled(user, scheduleEST)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
-			deleteVisitor(user.Email)
-			return
-		}
-		if currentScheduledMail != (ScheduledMail{}) {
-			errString := "You already have an email scheduled for this time. If you would like to change"
-			errString += " your message, please delete your mail in the Scheduled Emails page and try again."
-			http.Error(w, errString, http.StatusBadRequest)
-			deleteVisitor(user.Email)
-			return
-		}
-
-		// Add to MongoDB
-		db.InsertOne(client, "apps", "mail", bson.D{
-			{Key: "Email", Value: mailReq.Email},
-			{Key: "Sender", Value: mailReq.Sender},
-			{Key: "Header", Value: mailReq.Header},
-			{Key: "Body", Value: mailReq.Body},
-			{Key: "Schedule", Value: scheduleEST},
-			{Key: "UserName", Value: user.Name},
-			{Key: "CreatedAt", Value: time.Now()},
-		})
-	}
-
-	mailReq.Body += fmt.Sprintf(`
-	<hr />
-	<div style="font-size:8pt;">This email was instantly sent to all
-	college listservs with <a href="https://mail.hoagie.io/">Hoagie Mail</a>. 
-	Email composed by %s (%s) — if you believe this email
-	is offensive, intentionally misleading or harmful, please report it to
-	<a href="mailto:hoagie@princeton.edu">hoagie@princeton.edu</a>.</div>
-	`, user.Name, mailReq.Email)
-
-	if os.Getenv("HOAGIE_MODE") == "debug" {
-		println("Email: " + mailReq.Email)
-		println("Sender: " + mailReq.Sender)
-		println("Header: " + mailReq.Header)
-		println("Body: " + mailReq.Body)
-		println("Schedule: " + mailReq.Schedule)
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte("{\"Status\": \"OK\"}"))
-		return
-	}
-	
-	// Normal send
-	if mailReq.Schedule == "now" {
-		err = sendMail(mailReq)
-
-		fmt.Printf("MAIL: %s sent an email with title '%s'.", mailReq.Email, mailReq.Header)
-
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Hoagie Mail service had an error: %s.", err.Error()), http.StatusNotFound)
-			deleteVisitor(user.Email)
+	} else {
+		success := handleEmailNow(w, mailReq, user)
+		if !success {
 			return
 		}
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{\"Status\": \"OK\"}"))
 })

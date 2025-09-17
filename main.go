@@ -60,7 +60,6 @@ func main() {
 		if err != nil {
 			log.Fatal("Database connection error" + err.Error())
 		}
-
 		handlers.Setup(r, client, jwtMiddleware)
 
 		corsWrapper := auth.CorsWrapper(runtimeMode)
