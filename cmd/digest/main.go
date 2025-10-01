@@ -207,12 +207,11 @@ func runDigestScript() {
 		}
 	}
 	if total != 1 {
-		email.WriteString(fmt.Sprintf(`<p>That's all! This could have been %d emails in your inbox but instead it is just one!<br /><br />
-		You don't need to wait for the next digest to see what's new, check out the <a target="_blank" href="https://stuff.hoagie.io/">Hoagie Stuff</a>
-		to keep up to date with the latest posts before others.
-		</p>
+		email.WriteString(fmt.Sprintf(`<p>That's all! This could have been %d emails in your inbox but instead it is just one!<br /><br /></p>
 		`, total))
 	}
+	email.WriteString(`<p>You don't need to wait for the next digest to see what's new, check out the <a target="_blank" href="https://stuff.hoagie.io/">Hoagie Stuff</a>
+		to keep up to date with the latest posts before others.</p>`)
 	email.WriteString(fmt.Sprintf(`
 		<center>
 		%s <br />
