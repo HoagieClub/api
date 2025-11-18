@@ -175,7 +175,7 @@ func runDigestScript() {
 	email.WriteString("<hr />")
 	if len(digest["lost"]) > 0 {
 		email.WriteString("<h2>🧭 Lost & Found</h2>")
-		email.WriteString(`<div style="margin-bottom:20px; margin-top:-10px;">Access anytime through <a href="https://stuff.hoagie.io/lostfound">stuff.hoagie.io/lostfound</a></div>`)
+		email.WriteString(`<div style="margin-bottom:20px; margin-top:-10px;">Access anytime through <a href="https://stuff.hoagie.io/lost">stuff.hoagie.io/lost</a></div>`)
 		for i, message := range digest["lost"] {
 			email.WriteString(formatMessage(message))
 			if i == len(digest["lost"])-1 {
