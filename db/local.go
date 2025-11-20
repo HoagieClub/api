@@ -42,18 +42,12 @@ type PostData struct {
 
 // Local development helpers
 func SetupInitialDatabase(client *mongo.Client) error {
-	// Create core database
+	// Create Local Apps database
 	ctx := context.Background()
-	fmt.Println("[i] Creating core database...")
+	fmt.Println("[i] Creating Local Apps database...")
 	client.Database("apps").Drop(ctx)
-	client.Database("core").Drop(ctx)
-	client.Database("core").CreateCollection(ctx, "users")
 	client.Database("apps").CreateCollection(ctx, "stuff")
 	client.Database("apps").CreateCollection(ctx, "mail")
-	client.Database("core").Collection("users").InsertOne(ctx, map[string]interface{}{
-		"name":  "Meatball Hoagie",
-		"email": "meatball@princeton.edu",
-	})
 
 	veggie := UserData{Name: "Veggie Hoagie", Email: "veggie@princeton.edu"}
 	buffalo := UserData{Name: "Buffalo Chicken", Email: "buffalo@princeton.edu"}

@@ -76,8 +76,7 @@ func main() {
 	`)
 	if runtimeMode == "debug" {
 		fmt.Println("[i] Debug mode is on.")
-		var user map[string]interface{}
-		if db.FindUser(client, "meatball@princeton.edu", &user) != nil || os.Args[1] == "reset" {
+		if os.Args[1] == "reset" {
 			err := db.SetupInitialDatabase(client)
 			if err != nil {
 				panic("Failed to create initial database. Make sure you have a clean MongoDB instance running.")
