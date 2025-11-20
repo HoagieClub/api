@@ -65,7 +65,7 @@ func SetupInitialDatabase(client *mongo.Client) error {
 		{Id: "2", Title: "CLOTHING + TECH sale! Moving out!", Category: "sale", Link: "https://hoagie.io", Tags: []string{"clothing", "technology"}, Description: "MOVEOUT SALE! I am currently having a small moveout sale for anyone who is interested! All prices negotiable as I'm hoping for buncha stuff to find new homes", User: buffalo},
 		{Id: "3", Title: "Looking for a roommate", Category: "bulletin", Tags: []string{"announcement"}, Description: "I am looking for a roommate to move into my apartment in the fall. The apartment is a 2 bedroom 2 bathroom apartment in the 100 block of Nassau.", User: tomato},
 		{Id: "5", Title: "SELLING MY PC!", Category: "sale", Link: "https://hoagie.io", Tags: []string{"technology"}, Description: "Selling my PC, built it myself 2 years ago, still running great. Email me for specs!", User: potato},
-		{Id: "4", Title: "My watch", Category: "lost", Tags: []string{"lost"}, Description: "Was studying in Firestone and noticed I lost my watch, it has a blue strap and red watchface.", User: potato},
+		{Id: "4", Title: "My watch", Category: "lost", Tags: []string{"lost"}, Description: "Was studying in Firestone and noticed I lost my watch, it has a blue strap and red watchface.", User: potato, Thumbnail: "https://i.imgur.com/bbZ5Tmj.png"},
 	}
 
 	for _, post := range posts {
