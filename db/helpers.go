@@ -137,22 +137,6 @@ func DeleteOne(
 	return result, nil
 }
 
-func UpdateUser(
-	client *mongo.Client,
-	user string,
-	updateOperation bson.D,
-) (*mongo.UpdateResult, error) {
-	return UpdateOne(client, "core", "users", bson.D{{"email", user}}, updateOperation)
-}
-
-func FindUser(
-	client *mongo.Client,
-	user string,
-	result interface{},
-) error {
-	return FindOne(client, "core", "users", bson.D{{"email", user}}, result)
-}
-
 // Drop all documents in a collection
 func Drop(
 	client *mongo.Client,
