@@ -17,7 +17,7 @@ import (
 // BlueMonday sanitizes HTML, preventing unsafe user input
 var p = bluemonday.UGCPolicy()
 var SAFE_CSS_PROPERTIES = []string{"width", "height", "color", "background-color", "font-size",
-	"margin-left", "text-align", "font-family", "line-height"}
+	"margin-left", "text-align", "font-family", "line-height", "margin-top", "margin-bottom", "margin-right"}
 
 const NORMAL_EMAIL_FOOTER = `<hr />` +
 	`<div style="font-size:8pt;">This email was instantly sent to all ` +
