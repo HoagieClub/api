@@ -16,10 +16,10 @@ var client *mongo.Client
 
 const (
 	mailRoute              = "/mail"
-	mailSendRoute          = "/mail/send"
-	mailScheduledUserRoute = "/mail/scheduled/user"
-	stuffRoute             = "/stuff"
-	stuffUserRoute         = "/stuff/user"
+	mailSendRoute          = "/mail/send/"
+	mailScheduledUserRoute = "/mail/scheduled/user/"
+	stuffRoute             = "/stuff/"
+	stuffUserRoute         = "/stuff/user/"
 )
 
 func Setup(r *mux.Router, cl *mongo.Client, m *jwtmiddleware.JWTMiddleware) {
