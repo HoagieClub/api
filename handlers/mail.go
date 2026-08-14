@@ -58,8 +58,8 @@ func getListServs() *mailjet.RecipientsV31 {
 			Name:  "Forbes",
 		},
 		mailjet.RecipientV31{
-			Email: "westwire@princeton.edu",
-			Name:  "NCW",
+			Email: "huohub@princeton.edu",
+			Name:  "Huo",
 		},
 		mailjet.RecipientV31{
 			Email: "matheymail@PRINCETON.EDU",
