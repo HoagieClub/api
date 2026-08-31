@@ -10,8 +10,8 @@ import (
 
 	godotenv "github.com/joho/godotenv"
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type MailRequest struct {

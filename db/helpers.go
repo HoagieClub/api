@@ -5,9 +5,9 @@ import (
 	"os"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var CONNECTION_TIMEOUT = 10 * time.Second
@@ -19,7 +19,7 @@ func MongoClient() (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONNECTION_TIMEOUT)
 	defer cancel()
 
-	client, err := mongo.Connect(ctx, clientOptions)
+	client, err := mongo.Connect(clientOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func FindMany(
 	coll := client.Database(databaseName).Collection(collectionName)
 	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
 	defer cancel()
-	result, err := coll.Find(ctx, filter, options)
+	result, err := coll.Find(ctx, filter, *options)
 	if err != nil {
 		return nil, err
 	}
@@ -70,12 +70,12 @@ func UpdateMany(
 	collectionName string,
 	filter bson.D,
 	update bson.D,
-	options *options.UpdateOptions,
+	options *options.UpdateManyOptions,
 ) (*mongo.UpdateResult, error) {
 	coll := client.Database(databaseName).Collection(collectionName)
 	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
 	defer cancel()
-	result, err := coll.UpdateMany(ctx, filter, update, options)
+	result, err := coll.UpdateMany(ctx, filter, update, *options)
 	if err != nil {
 		return nil, err
 	}

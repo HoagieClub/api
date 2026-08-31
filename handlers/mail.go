@@ -11,7 +11,7 @@ import (
 
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
 	bluemonday "github.com/microcosm-cc/bluemonday"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 // BlueMonday sanitizes HTML, preventing unsafe user input
