@@ -12,17 +12,19 @@ import (
 
 // Mail request limit is 1 per 6 hours
 const mailLimitNumber = 6 * time.Hour
+
 var mailLimit = rate.Every(mailLimitNumber)
 
 // Test email limit is 1 per minute
 const testMailLimitNumber = 1 * time.Minute
+
 var testMailLimit = rate.Every(testMailLimitNumber)
 
 // Holds rate limiters for normal emails and test emails
 type visitor struct {
 	emailLimiter     *rate.Limiter
 	testEmailLimiter *rate.Limiter
-	lastSeen    time.Time
+	lastSeen         time.Time
 }
 
 // Map email handle to visitor pointers

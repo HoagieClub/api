@@ -12,9 +12,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type UserData struct {
@@ -94,7 +94,7 @@ var setupStuffIndex = func() error {
 
 var getCurrentDigest = func(user string) (PostData, error) {
 	var response PostData
-	err := db.FindOne(client, "apps", "stuff", bson.D{{"email", user}}, &response)
+	err := db.FindOne(client, "apps", "stuff", bson.D{{Key: "email", Value: user}}, &response)
 	if err != nil {
 		return PostData{}, fmt.Errorf("error getting digest: %s", err)
 	}
@@ -108,7 +108,7 @@ var getAllStuff = func(limit int64, skip int64, category string) ([]PostData, er
 	// Setup options for database search
 	findOptions := options.Find()
 	findOptions.SetSort(bson.D{
-		{"createdAt", -1},
+		{Key: "createdAt", Value: -1},
 		// {"category", category},
 	})
 	findOptions.SetLimit(limit)
@@ -117,9 +117,9 @@ var getAllStuff = func(limit int64, skip int64, category string) ([]PostData, er
 	query := bson.D{}
 	if category != "" {
 		if category == "marketplace" {
-			query = bson.D{{"category", bson.D{{"$in", []string{"sale", "selling"}}}}}
+			query = bson.D{{Key: "category", Value: bson.D{{Key: "$in", Value: []string{"sale", "selling"}}}}}
 		} else {
-			query = bson.D{{"category", category}}
+			query = bson.D{{Key: "category", Value: category}}
 		}
 	}
 	// Perform database search
@@ -322,17 +322,17 @@ var stuffSendHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Requ
 	// Add the digest request to the user's digest queue; the MongoDB document decomposes PostData and UserData
 	// into their constitutent elements
 	db.InsertOne(client, "apps", "stuff", bson.D{
-		{"email", user.Email},
-		{"user", postReq.User},
-		{"id", postReq.Id},
-		{"title", postReq.Title},
-		{"description", postReq.Description},
-		{"thumbnail", postReq.Thumbnail},
-		{"category", postReq.Category},
-		{"link", postReq.Link},
-		{"tags", postReq.Tags},
-		{"sent", postReq.Sent},
-		{"createdAt", time.Now()},
+		{Key: "email", Value: user.Email},
+		{Key: "user", Value: postReq.User},
+		{Key: "id", Value: postReq.Id},
+		{Key: "title", Value: postReq.Title},
+		{Key: "description", Value: postReq.Description},
+		{Key: "thumbnail", Value: postReq.Thumbnail},
+		{Key: "category", Value: postReq.Category},
+		{Key: "link", Value: postReq.Link},
+		{Key: "tags", Value: postReq.Tags},
+		{Key: "sent", Value: postReq.Sent},
+		{Key: "createdAt", Value: time.Now()},
 	})
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte("{\"Status\": \"OK\"}"))
@@ -355,7 +355,7 @@ var stuffDeleteHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Re
 
 	// Remove the digest request from the user's digest queue
 	_, err := db.DeleteOne(client, "apps", "stuff", bson.D{
-		{"email", user.Email},
+		{Key: "email", Value: user.Email},
 	})
 	if err != nil {
 		http.Error(w, "You do not have an existing digest message.", http.StatusBadRequest)

@@ -11,8 +11,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/mailjet/mailjet-apiv3-go"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 var REQUEST_TIMEOUT = 10 * time.Second
@@ -109,7 +109,7 @@ func runDigestScript() {
 	ctx := context.Background()
 	defer client.Disconnect(ctx)
 
-	cursor, err := db.FindMany(client, "apps", "stuff", bson.D{{"sent", false}}, options.Find())
+	cursor, err := db.FindMany(client, "apps", "stuff", bson.D{{Key: "sent", Value: false}}, options.Find())
 	if err != nil {
 		panic("Error getting digest emails" + err.Error())
 	}
@@ -233,7 +233,7 @@ func runDigestScript() {
 			Email:  "hoagie@princeton.edu",
 		})
 		fmt.Println("Successfully sent via Hoagie Mail.")
-		db.UpdateMany(client, "apps", "stuff", bson.D{{"sent", false}}, bson.D{{"$set", bson.D{{"sent", true}}}}, options.Update())
+		db.UpdateMany(client, "apps", "stuff", bson.D{{Key: "sent", Value: false}}, bson.D{{Key: "$set", Value: bson.D{{Key: "sent", Value: true}}}}, options.UpdateMany())
 
 	}
 }
