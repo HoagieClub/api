@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type Response struct {
@@ -76,7 +76,7 @@ func main() {
 	`)
 	if runtimeMode == "debug" {
 		fmt.Println("[i] Debug mode is on.")
-		if os.Args[1] == "reset" {
+		if len(os.Args) > 1 && os.Args[1] == "reset" {
 			err := db.SetupInitialDatabase(client)
 			if err != nil {
 				panic("Failed to create initial database. Make sure you have a clean MongoDB instance running.")

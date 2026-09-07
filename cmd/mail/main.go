@@ -10,17 +10,17 @@ import (
 
 	godotenv "github.com/joho/godotenv"
 	mailjet "github.com/mailjet/mailjet-apiv3-go"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 type MailRequest struct {
-	Header string
-	Sender string
-	Body   string
-	Email  string
-	UserName string
-	Schedule time.Time
+	Header    string
+	Sender    string
+	Body      string
+	Email     string
+	UserName  string
+	Schedule  time.Time
 	CreatedAt time.Time
 }
 
@@ -48,9 +48,9 @@ func runScheduledSendScript() {
 
 	// Grace period of 60 minutes because Heroku Scheduler isn't exact
 	filter := bson.D{
-		{"Schedule", bson.D{
-        	{"$lte", currentTimeEST},
-    	}},
+		{Key: "Schedule", Value: bson.D{
+			{Key: "$lte", Value: currentTimeEST},
+		}},
 	}
 	cursor, err := db.FindMany(client, "apps", "mail", filter, options.Find())
 	if err != nil {
@@ -84,7 +84,7 @@ func runScheduledSendScript() {
 			println("Schedule: " + mailReq.Schedule.String())
 			println("UserName: " + mailReq.UserName)
 			println("CreatedAt: " + mailReq.CreatedAt.String())
-		} 
+		}
 
 		if os.Getenv("HOAGIE_MODE") == "production" {
 			err = makeRequest(mailReq)
@@ -95,10 +95,10 @@ func runScheduledSendScript() {
 			}
 		}
 		currentMailFilter := bson.D{
-			{"Email", mailReq.Email},
-			{"Sender", mailReq.Sender},
-			{"Header", mailReq.Header},
-			{"Schedule", mailReq.Schedule},
+			{Key: "Email", Value: mailReq.Email},
+			{Key: "Sender", Value: mailReq.Sender},
+			{Key: "Header", Value: mailReq.Header},
+			{Key: "Schedule", Value: mailReq.Schedule},
 		}
 		db.DeleteOne(client, "apps", "mail", currentMailFilter)
 		total++

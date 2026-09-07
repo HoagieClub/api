@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 //  ----  Copied from stuff.go ----
@@ -94,17 +94,17 @@ func SetupInitialDatabase(client *mongo.Client) error {
 
 	for i, post := range posts {
 		InsertOne(client, "apps", "stuff", bson.D{
-			{"email", post.Email},
-			{"user", post.User},
-			{"id", post.Id},
-			{"title", post.Title},
-			{"description", post.Description},
-			{"thumbnail", post.Thumbnail},
-			{"category", post.Category},
-			{"link", post.Link},
-			{"tags", post.Tags},
-			{"sent", post.Sent},
-			{"createdAt", time.Now().Add(time.Duration(i) * time.Millisecond)},
+			{Key: "email", Value: post.Email},
+			{Key: "user", Value: post.User},
+			{Key: "id", Value: post.Id},
+			{Key: "title", Value: post.Title},
+			{Key: "description", Value: post.Description},
+			{Key: "thumbnail", Value: post.Thumbnail},
+			{Key: "category", Value: post.Category},
+			{Key: "link", Value: post.Link},
+			{Key: "tags", Value: post.Tags},
+			{Key: "sent", Value: post.Sent},
+			{Key: "createdAt", Value: time.Now().Add(time.Duration(i) * time.Millisecond)},
 		})
 	}
 
